@@ -17,6 +17,5 @@ await runOpenApiConvert({
 			preprocess: (spec) => normalise(spec),
 		},
 	],
-	patchesDir: false,
 	options: { namespace: "com.ui.network", serviceName: "UnifiNetwork", skipDeprecated: true },
 });

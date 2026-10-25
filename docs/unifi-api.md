@@ -52,4 +52,9 @@ Verified on 10.6.109:
 - **Server defaults.** Responses include fields the request didn't set (e.g. `mdnsForwardingEnabled: true`, `dhcpConfiguration.domainName: ""`).
 - **Policy ordering.** `GET /firewall/policies/ordering?sourceFirewallZoneId=…&destinationFirewallZoneId=…` returns `{ orderedFirewallPolicyIds: { beforeSystemDefined: [...], afterSystemDefined: [...] } }`. New policies land at the end of `beforeSystemDefined`.
 - **Lists.** Pagination is `offset`/`limit` (max 200) with `{ offset, limit, count, totalCount, data }`. Filters use `filter=name.eq('x')`-style expressions; filterable fields are listed per operation in the spec.
-- **Missing objects** return 404 (`NotFound` in the SDK).
+- **Missing objects** return 404 (`NotFound` in the SDK). So does any request under a site ID the console doesn't have, reads and deletes alike (`api.resource-not-found`).
+- **Sites:**
+    - the Integration API only lists them (`GET /v1/sites`). Creating and deleting them takes the legacy API (`POST /api/s/default/cmd/sitemgr` with `add-site` / `delete-site`), so a deleted site can't be brought back through the Integration API;
+    - the list is cached for about 10 s: a new site appears, and a deleted one disappears, only after that;
+    - names needn't be unique; internal references (`default`, or generated like `x7k2m9q1`) are;
+    - deleting a site deletes its devices too.

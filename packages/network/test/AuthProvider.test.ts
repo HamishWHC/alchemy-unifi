@@ -12,7 +12,7 @@ import {
 	UnifiNetworkAuth,
 	type UnifiNetworkAuthConfig,
 } from "../src/index.ts";
-import { fakeConsole, makeCertificates, TEST_API_KEY } from "./helpers/fake-console.ts";
+import { FAKE_SITES, fakeConsole, makeCertificates, TEST_API_KEY } from "./helpers/fake-console.ts";
 import { scriptedInteraction } from "./helpers/scripted-interaction.ts";
 
 const FINGERPRINT = "0D:5C:11:B7:22:00:6B:A4:1C:38:68:FC:BA:41:3D:E6:F2:45:4D:53:0E:5E:2D:56:FF:EB:55:3B:64:1B:DD:FC";
@@ -57,7 +57,7 @@ const plain = (resolved: ResolvedCredentials) => ({
 
 describe("UnifiNetwork auth provider", () => {
 	describe("configureWith", () => {
-		it.effect("normalises local values and defaults the site", () =>
+		it.effect("normalises local values and leaves the site unset", () =>
 			Effect.gen(function* () {
 				const config = yield* configureWith("local", {
 					url: "https://192.168.1.1/",
@@ -69,7 +69,6 @@ describe("UnifiNetwork auth provider", () => {
 					url: "https://192.168.1.1",
 					apiKey: "key",
 					certFingerprint: FINGERPRINT,
-					site: "default",
 				});
 			}).pipe(Effect.provide(layer)),
 		);
@@ -133,6 +132,19 @@ describe("UnifiNetwork auth provider", () => {
 				});
 				const tlsPrompt = prompts.find((p) => p.message.includes("untrusted certificate"));
 				expect(tlsPrompt?.options?.[0]?.description).toContain(certs.leafFingerprint);
+			}).pipe(Effect.scoped, Effect.provide(layer)),
+		);
+
+		it.effect("doesn't store the site of a single-site console", () =>
+			Effect.gen(function* () {
+				const { url } = yield* fakeConsole({ sites: FAKE_SITES.slice(0, 1) });
+				const { config, prompts } = yield* configure({
+					"How should Alchemy reach": "local",
+					"Console URL": url,
+					"API key": TEST_API_KEY,
+				});
+				expect(config).toEqual({ method: "local", url, apiKey: TEST_API_KEY });
+				expect(prompts.map((p) => p.message)).not.toContain("Default site");
 			}).pipe(Effect.scoped, Effect.provide(layer)),
 		);
 
@@ -201,7 +213,6 @@ describe("UnifiNetwork auth provider", () => {
 						certFingerprint: undefined,
 						insecure: false,
 					},
-					site: "default",
 					source: { type: "env" },
 				});
 			}).pipe(Effect.provide(layer)),

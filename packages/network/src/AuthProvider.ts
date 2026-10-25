@@ -15,7 +15,6 @@ import * as Effect from "effect/Effect";
 import * as HttpClient from "effect/http/HttpClient";
 import * as Redacted from "effect/Redacted";
 import {
-	DEFAULT_SITE,
 	UNIFI_NETWORK_AUTH_PROVIDER_NAME,
 	type UnifiNetworkAuthConfig,
 	UnifiNetworkAuthConfigSchema,
@@ -25,7 +24,7 @@ import type { Connection, ResolvedCredentials } from "./Credentials.ts";
 import * as UnifiHttpClient from "./HttpClient.ts";
 import * as SiteManager from "./SiteManager.ts";
 
-export { DEFAULT_SITE, UNIFI_NETWORK_AUTH_PROVIDER_NAME, type UnifiNetworkAuthConfig, UnifiNetworkAuthConfigSchema };
+export { UNIFI_NETWORK_AUTH_PROVIDER_NAME, type UnifiNetworkAuthConfig, UnifiNetworkAuthConfigSchema };
 
 const NAME = UNIFI_NETWORK_AUTH_PROVIDER_NAME;
 
@@ -71,7 +70,7 @@ type Settings = Omit<ResolvedCredentials, "source">;
 /** Validates stored, entered or environment values. `source` names them in errors. */
 const resolve = (input: Input, source: string): Effect.Effect<Settings, AuthError> =>
 	Effect.gen(function* () {
-		const site = input.site || DEFAULT_SITE;
+		const site = input.site || undefined;
 		if (input.method === "remote") {
 			if (!input.consoleId) return yield* authError(`no console ID (${source}).`);
 			return { connection: { type: "remote", consoleId: input.consoleId, apiKey: input.apiKey }, site };
@@ -113,22 +112,27 @@ const fromConfig = (
 
 const toConfig = ({ connection, site }: Settings): UnifiNetworkAuthConfig =>
 	connection.type === "remote"
-		? { method: "remote", consoleId: connection.consoleId, apiKey: Redacted.value(connection.apiKey), site }
+		? {
+				method: "remote",
+				consoleId: connection.consoleId,
+				apiKey: Redacted.value(connection.apiKey),
+				...(site === undefined ? {} : { site }),
+			}
 		: {
 				method: "local",
 				url: connection.url,
 				apiKey: Redacted.value(connection.apiKey),
 				...(connection.certFingerprint === undefined ? {} : { certFingerprint: connection.certFingerprint }),
 				...(connection.insecure ? { insecure: true } : {}),
-				site,
+				...(site === undefined ? {} : { site }),
 			};
 
 const siteField: ConfigureField = {
 	name: "site",
 	label: "Default site",
-	description: "Internal reference (e.g. default) or name of the site resources use when they don't set one.",
+	description:
+		"Only for consoles hosting several sites: internal reference (e.g. default) or name of the site resources use when they don't set one.",
 	optional: true,
-	defaultValue: DEFAULT_SITE,
 };
 
 const configureMethods: ReadonlyArray<ConfigureMethod> = [
@@ -183,7 +187,11 @@ const environment: ReadonlyArray<EnvironmentVariable> = [
 		description: "Local only: SHA-256 fingerprint of the console's certificate (or a CA in its chain) to pin.",
 	},
 	{ name: "UNIFI_INSECURE", required: false, description: "Local only: true to skip TLS verification." },
-	{ name: "UNIFI_SITE", required: false, description: `Default site (default: ${DEFAULT_SITE}).` },
+	{
+		name: "UNIFI_SITE",
+		required: false,
+		description: "Default site, for consoles hosting several. Unset means the console's only site.",
+	},
 ];
 
 const readEnvironmentSettings = Effect.gen(function* () {
@@ -268,7 +276,8 @@ const details = (profileName: string, config: UnifiNetworkAuthConfig) =>
 										: "verified",
 						},
 					];
-		lines.push({ key: "apiKey", value: displayRedacted(connection.apiKey) }, { key: "site", value: site });
+		lines.push({ key: "apiKey", value: displayRedacted(connection.apiKey) });
+		if (site !== undefined) lines.push({ key: "site", value: site });
 		const network = yield* withEstablished(connection, (established) =>
 			Effect.succeed(`UniFi Network ${established.applicationVersion}`),
 		).pipe(Effect.catch((error) => Effect.succeed(`unreachable (${error.message})`)));
@@ -281,7 +290,10 @@ export const UnifiNetworkAuth = AuthProviderLayer<UnifiNetworkAuthConfig, Resolv
 	Effect.gen(function* () {
 		const interaction = Interaction.accessors;
 
-		/** Lists the console's sites and lets the user pick the default (remembering `current`). */
+		/**
+		 * Lists the console's sites and, if there are several, lets the user
+		 * pick the default (remembering `current`). A single site isn't stored.
+		 */
 		const pickSite = (connection: Connection, current: string | undefined) =>
 			Effect.gen(function* () {
 				const { applicationVersion, sites } = yield* withEstablished(connection, (established) =>
@@ -297,8 +309,8 @@ export const UnifiNetworkAuth = AuthProviderLayer<UnifiNetworkAuthConfig, Resolv
 				const [only] = sites;
 				if (only === undefined) return yield* authError("the console has no sites.");
 				if (sites.length === 1) {
-					yield* interaction.output.info(`Using site ${only.name} (${only.internalReference}).`);
-					return only.internalReference;
+					yield* interaction.output.info(`The console has one site, ${only.name}; resources will use it.`);
+					return undefined;
 				}
 				return yield* interaction.prompt
 					.select({

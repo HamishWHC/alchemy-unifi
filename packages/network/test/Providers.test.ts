@@ -1,13 +1,16 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { describe, expect, it } from "@effect/vitest";
 import { AuthProviders, getAuthProvider } from "alchemy/Auth/AuthProvider";
+import { ProfileStoreLive } from "alchemy/Auth/Profile";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as UnifiNetwork from "../src/index.ts";
 
+/** What Alchemy's runtime provides to `providers()`. */
 const platform = Layer.mergeAll(
 	NodeServices.layer,
 	Layer.sync(AuthProviders, () => ({})),
+	ProfileStoreLive.pipe(Layer.provide(NodeServices.layer)),
 );
 
 describe("providers", () => {

@@ -35,8 +35,12 @@ export type CredentialsSource = { readonly type: "profile"; readonly profile: st
 
 export interface ResolvedCredentials {
 	readonly connection: Connection;
-	/** Site used by resources that don't set `site`, by internal reference (e.g. `default`) or name. */
-	readonly site: string;
+	/**
+	 * Site used by resources that don't set `site`, by internal reference
+	 * (e.g. `default`) or name. Unset means the console's only site; it's only
+	 * needed on consoles hosting several.
+	 */
+	readonly site?: string | undefined;
 	readonly source: CredentialsSource;
 }
 
@@ -48,7 +52,10 @@ export interface ResolvedCredentials {
 export class UnifiNetworkCredentials extends Context.Service<
 	UnifiNetworkCredentials,
 	Effect.Effect<ResolvedCredentials>
->()("UnifiNetwork::Credentials") {}
+>()("UnifiNetwork::Credentials") {
+	/** Alchemy's tag for credentials services, which lets stack bodies require this one. */
+	declare readonly kind: "Credentials";
+}
 
 /**
  * Resolves {@link UnifiNetworkCredentials} through the `UnifiNetwork` auth

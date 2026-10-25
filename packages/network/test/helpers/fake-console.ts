@@ -72,10 +72,17 @@ export const makeCertificates = (): TestCertificates => {
 
 export const TEST_API_KEY = "test-key";
 
-export const FAKE_SITES = [
-	{ id: "88f7af54-98f8-306a-a1c7-c9349722b1f6", internalReference: "default", name: "Default" },
-	{ id: "2f4f8f0e-0d6c-4b8e-9d0e-0f9a8b7c6d5e", internalReference: "x7k2m9q1", name: "Holiday house" },
-];
+export const FAKE_DEFAULT_SITE = {
+	id: "88f7af54-98f8-306a-a1c7-c9349722b1f6",
+	internalReference: "default",
+	name: "Default",
+};
+export const FAKE_OTHER_SITE = {
+	id: "2f4f8f0e-0d6c-4b8e-9d0e-0f9a8b7c6d5e",
+	internalReference: "x7k2m9q1",
+	name: "Holiday house",
+};
+export const FAKE_SITES = [FAKE_DEFAULT_SITE, FAKE_OTHER_SITE];
 
 export interface FakeConsoleOptions {
 	/** Serve over TLS with these certificates. */
@@ -83,6 +90,8 @@ export interface FakeConsoleOptions {
 	/** Integration API prefix: a console's by default, `/integration` for a standalone controller. */
 	readonly prefix?: string;
 	readonly applicationVersion?: string;
+	/** Sites `/v1/sites` lists (default: {@link FAKE_SITES}). */
+	readonly sites?: ReadonlyArray<(typeof FAKE_SITES)[number]>;
 }
 
 /**
@@ -108,12 +117,13 @@ export const fakeConsole = (
 					return json(401, { statusCode: 401, statusName: "UNAUTHORIZED", message: "Unauthorized" });
 				}
 				if (route === `${prefix}/v1/sites`) {
+					const sites = options.sites ?? FAKE_SITES;
 					return json(200, {
 						offset: 0,
 						limit: 200,
-						count: FAKE_SITES.length,
-						totalCount: FAKE_SITES.length,
-						data: FAKE_SITES,
+						count: sites.length,
+						totalCount: sites.length,
+						data: sites,
 					});
 				}
 				json(200, { applicationVersion: options.applicationVersion ?? "10.6.109" });

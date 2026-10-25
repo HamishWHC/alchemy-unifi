@@ -1,0 +1,35 @@
+{
+	"name": "@alchemy-unifi/test-controller",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Disposable UniFi Network Application in Docker for provider and SDK tests.",
+	"license": "MIT",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./vitest": "./src/vitest.ts"
+	},
+	"scripts": {
+		"up": "node src/cli.ts up",
+		"down": "node src/cli.ts down",
+		"check": "pnpm run typecheck && pnpm run lint && pnpm run fmt:check",
+		"typecheck": "tsc --noEmit",
+		"lint": "oxlint",
+		"lint:fix": "oxlint --fix",
+		"fmt": "oxfmt",
+		"fmt:check": "oxfmt --check"
+	},
+	"dependencies": {
+		"@effect/platform-node": "catalog:",
+		"effect": "catalog:"
+	},
+	"devDependencies": {
+		"@total-typescript/ts-reset": "catalog:",
+		"@types/node": "catalog:",
+		"typescript": "catalog:",
+		"vitest": "catalog:"
+	},
+	"peerDependencies": {
+		"vitest": "^5.0.5"
+	}
+}

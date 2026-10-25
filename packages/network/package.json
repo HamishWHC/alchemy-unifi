@@ -36,6 +36,7 @@
 		"check": "pnpm run typecheck && pnpm run lint && pnpm run fmt:check",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
+		"test:unit": "vitest run --project unit",
 		"lint": "oxlint",
 		"lint:fix": "oxlint --fix",
 		"fmt": "oxfmt",
@@ -45,6 +46,7 @@
 		"@alchemy-unifi/network-sdk": "workspace:*"
 	},
 	"devDependencies": {
+		"@alchemy-unifi/test-controller": "workspace:*",
 		"@effect/platform-node": "catalog:",
 		"@effect/vitest": "catalog:",
 		"@total-typescript/ts-reset": "catalog:",

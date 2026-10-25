@@ -7,6 +7,9 @@
 #                       unifi (Network 10.6.109 + api-key-agent) ──▶ unifi-os (fake UniFi Core, 127.0.0.1:11081)
 #
 # The standalone UI also stays available at https://localhost:18443.
+# A fixed project name, so every worktree reuses one controller (the ports are fixed anyway).
+name: alchemy-unifi-test-controller
+
 services:
   mongo:
     image: mongo:7.0

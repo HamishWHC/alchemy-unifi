@@ -1,25 +1,32 @@
 # Testing
 
-- **Unit tests:** `pnpm test` (vitest + `@effect/vitest`) in `packages/network/test/*.test.ts`. They need no controller:
-    - `helpers/fake-console.ts` serves `/v1/info` and `/v1/sites` over http or https on a random port. Its certificates (a CA and a `localhost` leaf) are generated with `openssl` at test time, so no keys are committed. Keys are RSA with SHA-256 signatures, because LibreSSL's defaults (SHA-1, explicit EC parameters) are rejected by Node;
-    - `helpers/scripted-interaction.ts` answers `configure` prompts by message prefix;
-    - remote mode is tested against a fake `HttpClient`, since there's no console behind ui.com to use.
-- **Test controller:** a disposable UniFi Network Application in Docker that accepts API keys like a real console. The SDK has been exercised against it by hand; there are no automated lifecycle tests yet.
-
 Never test against a real console; see `AGENTS.md`.
 
-## Running the test controller
+- **Unit tests** (`pnpm turbo run test:unit`, or `pnpm run test:unit` in a package) need nothing running:
+    - `packages/network/test/helpers/fake-console.ts` serves `/v1/info` and `/v1/sites` over http or https on a random port. Its certificates (a CA and a `localhost` leaf) are generated with `openssl` at test time, so no keys are committed. Keys are RSA with SHA-256 signatures, because LibreSSL's defaults (SHA-1, explicit EC parameters) are rejected by Node;
+    - `helpers/scripted-interaction.ts` answers `configure` prompts by message prefix;
+    - remote mode is tested against a fake `HttpClient`, since there's no console behind ui.com to use.
+- **Controller tests** (`test/controller/**` in `network` and `network-sdk`) run against the test controller, a disposable UniFi Network Application in Docker that accepts API keys like a real console. `pnpm test` runs both kinds, and starts the controller if it isn't running (24 s from scratch, plus image pulls the first time; 2-3 s when it's already up).
+
+## Writing controller tests
+
+- **Each file gets its own UniFi site:** `useSite(label)` from `@alchemy-unifi/test-controller/vitest` creates one before the file's tests and deletes it (with everything in it) afterwards. Parallel worktrees share one controller, and UniFi rejects duplicate names and VLAN IDs, so tests must never use the `default` site.
+- **Provider tests** use `alchemy/Test/Vitest` (`Test.make({ providers: UnifiNetwork.providers() })`, then `test.provider(...)`, which deploys a scratch stack and destroys it afterwards). `useSite` sets `UNIFI_URL`, `UNIFI_API_KEY` and `UNIFI_SITE` for the file, which is how they get credentials.
+- **SDK tests** take `CONTROLLER.baseUrl` and `CONTROLLER.apiKey` from `@alchemy-unifi/test-controller`.
+- **The Integration API caches the site list for about 10 s.** A new site doesn't appear in `GET /v1/sites` until then (`useSite` waits for it), and a deleted one stays listed. To test a missing site, use an ID or reference that never existed; requests under it behave like a deleted site's (404).
+- Test sites left behind by killed runs are named `alchemy-unifi-test-<ms timestamp>-…`, and the next controller start deletes any over an hour old.
+
+## Running the test controller by hand
 
 ```sh
-cd packages/network/test/controller
-docker compose up -d
-./setup.sh                   # first-run setup, fake gateway, zone-based firewall migration
-# base URL: http://localhost:18080/proxy/network/integration
-# API key:  alchemy-unifi-test-key   (override with UNIFI_TEST_API_KEY on the unifi-os service)
-docker compose down -v       # throw it all away
+cd packages/test-controller
+pnpm run up     # start (or reuse) and prepare it; prints the base URL and API key
+pnpm run down   # throw it all away
 ```
 
-The standalone UI is also available at `https://localhost:18443` (admin / `Test-Passw0rd!`).
+- Base URL `http://localhost:18080/proxy/network/integration`, API key `alchemy-unifi-test-key`.
+- The standalone UI and legacy API are at `https://localhost:18443` (admin / `Test-Passw0rd!`).
+- The compose project has a fixed name, so every worktree reuses the one controller.
 
 ## How it works
 
@@ -50,17 +57,23 @@ It targets obfuscated class and method names (`com/ubnt/net/g/oViVvFSgD`, `com/u
 
 ### Why the fake gateway and migration exist
 
-- Gateway-managed networks need a gateway on the site. `setup.sh` inserts an offline UDM Pro into the `device` collection, which satisfies the check.
-- Zone endpoints need the zone-based firewall migration. `setup.sh` runs the real one, so the system zones are genuine.
+Every prepared site (the default one, and each test site) gets both:
+
+- Gateway-managed networks need a gateway on the site. The harness inserts an offline UDM Pro into the `device` collection, which satisfies the check. Its MAC is derived from the site's ID, so each site's is distinct.
+- Zone endpoints need the zone-based firewall migration. The harness runs the real one, so the system zones are genuine. Running it again is harmless (204).
 
 ## What's been verified
 
-From a clean start:
+From a clean start, by hand:
 
 - API-key auth on the console-style path (a wrong key gets 401);
 - network create/update/delete, for both unmanaged and gateway-managed networks (with DHCP), with typed `NotFound` after delete;
 - Wi-Fi broadcast create, and passphrase readback;
 - system and custom firewall zones, firewall policies, and policy ordering.
+
+## Hardware the fake UniFi OS claims
+
+`fake-unifi-os.mjs` reports real hardware for the controller's CPU: a UDM Pro on arm64, a Cloud Key Enterprise (`UCKENT`) on x86, which is what CI runners get. The full suite passes on both (x86 checked locally under Docker's amd64 emulation, where the controller starts in about a minute), including alongside the fake UDM Pro gateway.
 
 ## Limits
 

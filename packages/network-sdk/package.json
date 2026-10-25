@@ -70,6 +70,8 @@
 		"generate": "node scripts/convert.ts && node scripts/generate.ts && oxfmt package.json",
 		"check": "pnpm run typecheck && pnpm run lint && pnpm run fmt:check",
 		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
+		"test:unit": "vitest run --project unit",
 		"lint": "oxlint",
 		"lint:fix": "oxlint --fix",
 		"fmt": "oxfmt",
@@ -79,13 +81,16 @@
 		"@distilled.cloud/core": "^1.0.0-rc.17"
 	},
 	"devDependencies": {
+		"@alchemy-unifi/test-controller": "workspace:*",
 		"@effect/platform-node": "catalog:",
+		"@effect/vitest": "catalog:",
 		"@total-typescript/ts-reset": "catalog:",
 		"@types/node": "catalog:",
 		"effect": "catalog:",
 		"rolldown": "catalog:",
 		"tsdown": "catalog:",
-		"typescript": "catalog:"
+		"typescript": "catalog:",
+		"vitest": "catalog:"
 	},
 	"peerDependencies": {
 		"effect": "^4.0.6"

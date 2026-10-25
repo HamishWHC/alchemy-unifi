@@ -43,7 +43,7 @@ program.pipe(Effect.provide(Layer.mergeAll(credentials, FetchHttpClient.layer)))
 
 Things the types don't make obvious:
 
-- Paginated operations also have `.pages(input)` and `.items(input)` Streams (but see the `.items()` gap below).
+- Paginated operations also have `.pages(input)` and `.items(input)` Streams.
 - Unmatched failures become `UnknownUnifiNetworkError`; schema failures become `UnifiNetworkParseError`.
 - Throttling and transient errors retry by default; opt out per call with `Sdk.Retry.none`.
 
@@ -52,6 +52,4 @@ Things the types don't make obvious:
 - **Untyped members.** 24 members are `unknown` because UniFi's spec gives them no schema: ACL/firewall `sourceFilter`/`destinationFilter`, Wi-Fi `radiusConfiguration`, device `accessPoint`, and a few metadata fields.
 - **Undocumented required fields.** Some fields the spec marks optional are required by the server (see [unifi-api.md](unifi-api.md#behaviour-not-in-the-spec)).
 
-Both are fixed by spec patches; see [spec-generation.md](spec-generation.md#fixing-the-spec).
-
-- **Untyped `.items()`.** Paginated operations are generated with `unknown` as the item type, so `.items()` yields `unknown`. Use `.pages()` and read `page.data`, which is typed, until the generator config is fixed.
+Fix either with a spec patch; see [spec-generation.md](spec-generation.md#fixing-the-spec).

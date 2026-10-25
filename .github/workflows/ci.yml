@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   check:
-    name: typecheck / lint / fmt / test / build
+    name: typecheck / lint / fmt / unit tests / build
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -35,8 +35,41 @@ jobs:
       - name: Check
         run: pnpm check
 
-      - name: Test
-        run: pnpm test
+      - name: Unit tests
+        run: pnpm turbo run test:unit
 
       - name: Build
         run: pnpm build
+
+  controller:
+    name: tests against the test controller
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Start the test controller
+        run: pnpm --filter @alchemy-unifi/test-controller run up
+
+      - name: Test
+        run: pnpm test
+
+      - name: Controller logs
+        if: failure()
+        working-directory: packages/test-controller
+        run: docker compose logs --no-color --tail 300

@@ -164,9 +164,6 @@ settings:
 
 catalogs:
   default:
-    '@distilled.cloud/core':
-      specifier: ^1.0.0-rc.17
-      version: 1.0.0-rc.17
     '@effect/platform-node':
       specifier: ^4.0.6
       version: 4.0.6
@@ -238,6 +235,9 @@ importers:
         specifier: workspace:*
         version: link:../network-sdk
     devDependencies:
+      '@alchemy-unifi/test-controller':
+        specifier: workspace:*
+        version: link:../test-controller
       '@effect/platform-node':
         specifier: 'catalog:'
         version: 4.0.6(effect@4.0.6)(redis@6.3.0)
@@ -272,9 +272,15 @@ importers:
         specifier: ^1.0.0-rc.17
         version: 1.0.0-rc.17(@effect/platform-node@4.0.6(effect@4.0.6)(redis@6.3.0))(effect@4.0.6)(rolldown@1.2.15)
     devDependencies:
+      '@alchemy-unifi/test-controller':
+        specifier: workspace:*
+        version: link:../test-controller
       '@effect/platform-node':
         specifier: 'catalog:'
         version: 4.0.6(effect@4.0.6)(redis@6.3.0)
+      '@effect/vitest':
+        specifier: 'catalog:'
+        version: 4.0.6(effect@4.0.6)(vitest@5.0.5(@types/node@24.19.2)(vite@8.3.5(@types/node@24.19.2)(yaml@2.9.1)))
       '@total-typescript/ts-reset':
         specifier: 'catalog:'
         version: 0.6.1
@@ -293,6 +299,31 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 7.1.0-beta
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.5(@types/node@24.19.2)(vite@8.3.5(@types/node@24.19.2)(yaml@2.9.1))
+
+  packages/test-controller:
+    dependencies:
+      '@effect/platform-node':
+        specifier: 'catalog:'
+        version: 4.0.6(effect@4.0.6)(redis@6.3.0)
+      effect:
+        specifier: 'catalog:'
+        version: 4.0.6
+    devDependencies:
+      '@total-typescript/ts-reset':
+        specifier: 'catalog:'
+        version: 0.6.1
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.19.2
+      typescript:
+        specifier: 'catalog:'
+        version: 7.1.0-beta
+      vitest:
+        specifier: 'catalog:'
+        version: 5.0.5(@types/node@24.19.2)(vite@8.3.5(@types/node@24.19.2)(yaml@2.9.1))
 
 packages:
 

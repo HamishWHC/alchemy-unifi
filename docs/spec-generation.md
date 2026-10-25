@@ -39,7 +39,7 @@ UniFi's published spec trips up the converter in two ways.
 Never edit `src/services`; changes there are lost on the next generate.
 
 - **Structural problems** affecting many schemas (naming, polymorphism) belong in `normalise-spec.ts`.
-- **Targeted fixes** use distilled's patch mechanism: RFC-6902 operations in `packages/network-sdk/patches/`, enabled via `patchesDir` in `convert.ts`. Examples are adding a schema to an untyped member, marking a field required, or adding a typed error response. This isn't wired up yet (`patchesDir: false`).
+- **Targeted fixes** use distilled's patch mechanism: RFC-6902 operations in `packages/network-sdk/patches/`, picked up by `convert.ts` (distilled's default `patchesDir`). Examples are adding a schema to an untyped member, marking a field required, or adding a typed error response. Patches target the converted Smithy model (`/shapes/...`), not the OpenAPI spec, and a patch whose path no longer resolves fails generation.
 
 ## Bumping the spec
 
