@@ -22,6 +22,7 @@
 	"sideEffects": false,
 	"exports": {
 		".": {
+			"@alchemy-unifi/source": "./src/index.ts",
 			"types": "./dist/index.d.mts",
 			"default": "./dist/index.mjs"
 		},
@@ -32,7 +33,6 @@
 	},
 	"scripts": {
 		"build": "tsdown",
-		"generate": "node scripts/convert.ts && node scripts/generate.ts && oxfmt package.json",
 		"check": "pnpm run typecheck && pnpm run lint && pnpm run fmt:check",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
@@ -42,7 +42,7 @@
 		"fmt:check": "oxfmt --check"
 	},
 	"dependencies": {
-		"@distilled.cloud/core": "^1.0.0-rc.17"
+		"@alchemy-unifi/network-sdk": "workspace:*"
 	},
 	"devDependencies": {
 		"@effect/platform-node": "catalog:",
@@ -51,7 +51,6 @@
 		"@types/node": "catalog:",
 		"alchemy": "catalog:",
 		"effect": "catalog:",
-		"rolldown": "catalog:",
 		"tsdown": "catalog:",
 		"typescript": "catalog:",
 		"vitest": "catalog:"
@@ -59,8 +58,5 @@
 	"peerDependencies": {
 		"alchemy": "^2.0.0-beta.84",
 		"effect": "^4.0.6"
-	},
-	"distilled": {
-		"generatedAt": "2026-10-25"
 	}
 }

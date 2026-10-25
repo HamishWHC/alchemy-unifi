@@ -13,7 +13,7 @@ Things you must know that aren't obvious from the code.
 
 ## Code generation
 
-- **`packages/network/src/sdk/services/` is generated.** Never edit it. Fix structural spec problems in `scripts/normalise-spec.ts`, targeted ones with distilled RFC-6902 patches, then run `pnpm generate`.
+- **`packages/network-sdk/src/services/` is generated.** Never edit it. Fix structural spec problems in `scripts/normalise-spec.ts`, targeted ones with distilled RFC-6902 patches, then run `pnpm generate`.
 - The test controller's Java agent (`test/controller/agent/ApiKeyAgent.java`) targets obfuscated names from Network **10.6.109**. Bumping the controller image means re-finding them (see `docs/testing.md`).
 
 ## Conventions and preferences
@@ -22,7 +22,7 @@ Things you must know that aren't obvious from the code.
 - **Cover the whole Network API over time**, including deployment-specific things (WANs, devices). Whether a stack manages them is the consumer's choice.
 - **Support only the latest stable UniFi Network release.**
 - **Node only.** Bun is not a target.
-- **One package per UniFi application** (`network` now; Site Manager and Protect later, each its own package under `packages/`).
+- **Two packages per UniFi application:** the provider (`network`) and its raw distilled SDK (`network-sdk`), laid out like the `@distilled.cloud/*` packages on npm. Site Manager and Protect follow the same pattern later.
 - **Releases** use pnpm's built-in versioning (`pnpm change`, `pnpm version -r`), not changesets.
 - **Bump `typescript`, `@effect/tsgo` and `oxlint` together.** `@effect/tsgo` supports specific TS and oxlint versions.
 - **Fix lint errors in the code; don't disable rules.**

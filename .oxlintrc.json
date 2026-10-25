@@ -25,5 +25,5 @@
 		"require-yield": "off",
 		"eslint/no-underscore-dangle": "off"
 	},
-	"ignorePatterns": ["**/node_modules", "**/dist", "**/src/sdk/services"]
+	"ignorePatterns": ["**/node_modules", "**/dist", "packages/network-sdk/src/services"]
 }

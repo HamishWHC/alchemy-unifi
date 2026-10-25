@@ -49,7 +49,7 @@ const spec: SdkSpec = {
 runGeneratorCli({
 	description: "Generate the UniFi Network Effect SDK",
 	root: `${import.meta.dirname}/..`,
-	outDir: "src/sdk/services",
+	outDir: "src/services",
 	patchesDir: false,
 	spec: (model) => {
 		const shapes: Record<string, Shape> = model.shapes ?? {};

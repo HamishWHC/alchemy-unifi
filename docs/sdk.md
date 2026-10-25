@@ -1,8 +1,13 @@
-# SDK (`packages/network/src/sdk`)
+# SDK (`@alchemy-unifi/network-sdk`)
 
-An Effect SDK for the UniFi Network Integration API, generated with distilled's codegen (see [spec-generation.md](spec-generation.md)). Its layout is identical to a `@distilled.cloud/*` package, so it can be split out or upstreamed without changes.
+An Effect SDK for the UniFi Network Integration API in `packages/network-sdk`, generated with distilled's codegen (see [spec-generation.md](spec-generation.md)). Its layout and `exports` match a `@distilled.cloud/*` package (e.g. `@distilled.cloud/neon`), so it can be upstreamed without changes.
 
-Hand-written files sit beside the generated `services/` and follow distilled's layout. `index.ts` re-exports operations at the root (`Sdk.createNetwork`, not `Sdk.network.createNetwork`). The SDK isn't part of the package's public entry point; provider code imports `./sdk/index.ts`.
+Hand-written files sit beside the generated `services/` and follow distilled's layout:
+
+- the root re-exports every operation (`Sdk.createNetwork`), plus `Services.network`, `T` (traits), `Retry`, the protocol and errors;
+- subpaths `./Credentials`, `./Errors`, `./Traits`, `./Pagination`, `./Protocol` and `./Retry` expose the hand-written modules, and `./<service>` (`./network`) a generated service.
+
+It's a separate package so that consumers needing an escape hatch can call the API directly; `@alchemy-unifi/network` doesn't re-export it.
 
 ## Using it
 
@@ -13,7 +18,7 @@ import * as Effect from "effect/Effect";
 import * as FetchHttpClient from "effect/http/FetchHttpClient";
 import * as Layer from "effect/Layer";
 import * as Redacted from "effect/Redacted";
-import * as Sdk from "./sdk/index.ts";
+import * as Sdk from "@alchemy-unifi/network-sdk";
 
 const credentials = Layer.succeed(
 	Sdk.Credentials,

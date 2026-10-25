@@ -8,7 +8,7 @@ import { type Policy, throttlingFactory, transientFactory } from "@distilled.clo
  *
  * @example
  * ```ts
- * import * as UnifiNetwork from "@distilled.cloud/unifi-network";
+ * import * as UnifiNetwork from "@alchemy-unifi/network-sdk";
  *
  * myEffect.pipe(UnifiNetwork.Retry.transient);
  * Effect.provide(myEffect, Layer.succeed(UnifiNetwork.Retry.Retry, customPolicy));

@@ -5,6 +5,8 @@
 		"target": "ES2023",
 		"module": "ESNext",
 		"moduleResolution": "Bundler",
+		// Resolve workspace packages to their source, so nothing needs building first.
+		"customConditions": ["@alchemy-unifi/source"],
 		"lib": ["ES2023", "DOM"],
 		"moduleDetection": "force",
 		"skipLibCheck": true,
@@ -47,7 +49,7 @@
 						"options": { "diagnosticSeverity": { "floatingEffect": "error" } }
 					},
 					{
-						"include": ["**/src/sdk/services/**/*.ts"],
+						"include": ["**/network-sdk/src/services/**/*.ts"],
 						"options": { "diagnosticSeverity": { "schemaNumber": "off" } }
 					}
 				]

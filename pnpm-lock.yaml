@@ -234,9 +234,9 @@ importers:
 
   packages/network:
     dependencies:
-      '@distilled.cloud/core':
-        specifier: ^1.0.0-rc.17
-        version: 1.0.0-rc.17(@effect/platform-node@4.0.6(effect@4.0.6)(redis@6.3.0))(effect@4.0.6)(rolldown@1.2.15)
+      '@alchemy-unifi/network-sdk':
+        specifier: workspace:*
+        version: link:../network-sdk
     devDependencies:
       '@effect/platform-node':
         specifier: 'catalog:'
@@ -256,9 +256,6 @@ importers:
       effect:
         specifier: 'catalog:'
         version: 4.0.6
-      rolldown:
-        specifier: 'catalog:'
-        version: 1.2.15
       tsdown:
         specifier: 'catalog:'
         version: 0.23.2(typescript@7.1.0-beta)
@@ -268,6 +265,34 @@ importers:
       vitest:
         specifier: 'catalog:'
         version: 5.0.5(@types/node@24.19.2)(vite@8.3.5(@types/node@24.19.2)(yaml@2.9.1))
+
+  packages/network-sdk:
+    dependencies:
+      '@distilled.cloud/core':
+        specifier: ^1.0.0-rc.17
+        version: 1.0.0-rc.17(@effect/platform-node@4.0.6(effect@4.0.6)(redis@6.3.0))(effect@4.0.6)(rolldown@1.2.15)
+    devDependencies:
+      '@effect/platform-node':
+        specifier: 'catalog:'
+        version: 4.0.6(effect@4.0.6)(redis@6.3.0)
+      '@total-typescript/ts-reset':
+        specifier: 'catalog:'
+        version: 0.6.1
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.19.2
+      effect:
+        specifier: 'catalog:'
+        version: 4.0.6
+      rolldown:
+        specifier: 'catalog:'
+        version: 1.2.15
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.23.2(typescript@7.1.0-beta)
+      typescript:
+        specifier: 'catalog:'
+        version: 7.1.0-beta
 
 packages:
 

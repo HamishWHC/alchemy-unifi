@@ -3,7 +3,7 @@
 	"tasks": {
 		"generate": {
 			"inputs": ["openapi/**", "scripts/**"],
-			"outputs": ["src/generated/**"]
+			"outputs": ["src/services/**"]
 		},
 		"build": {
 			"dependsOn": ["^build"],

@@ -5,8 +5,8 @@
 ## Notes
 
 - Only the SDK and the test controller are built. `providers()` registers no resources yet, and there's no auth provider.
-- `packages/network/src/sdk/services/` is generated (see [spec-generation.md](spec-generation.md)); the rest of `src/sdk/` is hand-written.
-- Each UniFi application (Site Manager, Protect, …) gets its own package under `packages/`.
+- Each UniFi application gets two packages: the Alchemy provider (`packages/network`, `@alchemy-unifi/network`) and its raw distilled SDK (`packages/network-sdk`, `@alchemy-unifi/network-sdk`), laid out like a `@distilled.cloud/*` package. The provider depends on the SDK; anyone needing an escape hatch uses the SDK package directly.
+- `packages/network-sdk/src/services/` is generated (see [spec-generation.md](spec-generation.md)); the rest of `packages/network-sdk/src/` is hand-written.
 
 ## Background
 

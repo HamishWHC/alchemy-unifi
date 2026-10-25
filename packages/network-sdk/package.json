@@ -1,0 +1,96 @@
+{
+	"name": "@alchemy-unifi/network-sdk",
+	"version": "0.0.0",
+	"description": "Effect SDK for the UniFi Network Integration API, generated with distilled.",
+	"keywords": [
+		"distilled",
+		"effect",
+		"ubiquiti",
+		"unifi"
+	],
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/HamishWHC/alchemy-unifi.git",
+		"directory": "packages/network-sdk"
+	},
+	"files": [
+		"dist"
+	],
+	"type": "module",
+	"sideEffects": false,
+	"exports": {
+		".": {
+			"@alchemy-unifi/source": "./src/index.ts",
+			"types": "./dist/index.d.mts",
+			"default": "./dist/index.mjs"
+		},
+		"./Credentials": {
+			"@alchemy-unifi/source": "./src/credentials.ts",
+			"types": "./dist/credentials.d.mts",
+			"default": "./dist/credentials.mjs"
+		},
+		"./Errors": {
+			"@alchemy-unifi/source": "./src/errors.ts",
+			"types": "./dist/errors.d.mts",
+			"default": "./dist/errors.mjs"
+		},
+		"./Traits": {
+			"@alchemy-unifi/source": "./src/traits.ts",
+			"types": "./dist/traits.d.mts",
+			"default": "./dist/traits.mjs"
+		},
+		"./Pagination": {
+			"@alchemy-unifi/source": "./src/pagination.ts",
+			"types": "./dist/pagination.d.mts",
+			"default": "./dist/pagination.mjs"
+		},
+		"./Protocol": {
+			"@alchemy-unifi/source": "./src/protocol.ts",
+			"types": "./dist/protocol.d.mts",
+			"default": "./dist/protocol.mjs"
+		},
+		"./Retry": {
+			"@alchemy-unifi/source": "./src/retry.ts",
+			"types": "./dist/retry.d.mts",
+			"default": "./dist/retry.mjs"
+		},
+		"./*": {
+			"@alchemy-unifi/source": "./src/services/*.ts",
+			"types": "./dist/services/*.d.mts",
+			"default": "./dist/services/*.mjs"
+		},
+		"./package.json": "./package.json"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"scripts": {
+		"build": "tsdown",
+		"generate": "node scripts/convert.ts && node scripts/generate.ts && oxfmt package.json",
+		"check": "pnpm run typecheck && pnpm run lint && pnpm run fmt:check",
+		"typecheck": "tsc --noEmit",
+		"lint": "oxlint",
+		"lint:fix": "oxlint --fix",
+		"fmt": "oxfmt",
+		"fmt:check": "oxfmt --check"
+	},
+	"dependencies": {
+		"@distilled.cloud/core": "^1.0.0-rc.17"
+	},
+	"devDependencies": {
+		"@effect/platform-node": "catalog:",
+		"@total-typescript/ts-reset": "catalog:",
+		"@types/node": "catalog:",
+		"effect": "catalog:",
+		"rolldown": "catalog:",
+		"tsdown": "catalog:",
+		"typescript": "catalog:"
+	},
+	"peerDependencies": {
+		"effect": "^4.0.6"
+	},
+	"distilled": {
+		"generatedAt": "2026-10-25"
+	}
+}

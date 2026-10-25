@@ -1,17 +1,17 @@
 # Spec generation
 
-`pnpm generate` (in `packages/network`, or via turbo at the root) rebuilds the SDK from the vendored spec:
+`pnpm generate` (in `packages/network-sdk`, or via turbo at the root) rebuilds the SDK from the vendored spec:
 
 ```text
 openapi/network-10.6.106.json
    │  scripts/normalise-spec.ts   (fixes for the published spec, run as convert's preprocess hook)
    │  scripts/convert.ts          distilled OpenAPI → Smithy  ⇒ .generated-specs/network.json (gitignored)
-   │  scripts/generate.ts         distilled Smithy → Effect   ⇒ src/sdk/services/*.ts (committed)
+   │  scripts/generate.ts         distilled Smithy → Effect   ⇒ src/services/*.ts (committed)
    ▼
 oxfmt package.json                (the generator stamps `distilled.generatedAt` into it)
 ```
 
-Generation is deterministic: two runs produce byte-identical output. Only the generated TypeScript is committed, so spec or normaliser changes show up as diffs in `src/sdk/services`.
+Generation is deterministic: two runs produce byte-identical output. Only the generated TypeScript is committed, so spec or normaliser changes show up as diffs in `src/services`.
 
 ## What the normaliser fixes
 
@@ -32,14 +32,14 @@ UniFi's published spec trips up the converter in two ways.
     - List operations whose input has `offset` and whose output has `totalCount` and `data` get the `smithy.api#paginated` trait.
     - The trait's `mode` is `"token"`, because the trait type only accepts known modes. That mode is mapped to our own `paginateOffset` strategy.
 - Sensitive members get `T.SensitiveValue` and accept `string | Redacted<string>`.
-- Output goes to `src/sdk/services`. The hand-written files in `src/sdk` follow distilled's layout (see [sdk.md](sdk.md)).
+- Output goes to `src/services`. The hand-written files beside it follow distilled's layout (see [sdk.md](sdk.md)).
 
 ## Fixing the spec
 
-Never edit `src/sdk/services`; changes there are lost on the next generate.
+Never edit `src/services`; changes there are lost on the next generate.
 
 - **Structural problems** affecting many schemas (naming, polymorphism) belong in `normalise-spec.ts`.
-- **Targeted fixes** use distilled's patch mechanism: RFC-6902 operations in `packages/network/patches/`, enabled via `patchesDir` in `convert.ts`. Examples are adding a schema to an untyped member, marking a field required, or adding a typed error response. This isn't wired up yet (`patchesDir: false`).
+- **Targeted fixes** use distilled's patch mechanism: RFC-6902 operations in `packages/network-sdk/patches/`, enabled via `patchesDir` in `convert.ts`. Examples are adding a schema to an untyped member, marking a field required, or adding a typed error response. This isn't wired up yet (`patchesDir: false`).
 
 ## Bumping the spec
 
