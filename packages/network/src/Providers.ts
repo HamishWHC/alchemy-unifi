@@ -8,6 +8,6 @@ export class Providers extends Provider.ProviderCollection<Providers>()("UnifiNe
  * cloud `providers()` layers in a Stack.
  *
  * TODO: provide the auth provider, credentials bridge and HTTP client once
- * they exist (see docs/architecture.md).
+ * they exist.
  */
 export const providers = () => Layer.effect(Providers, Provider.collection([]));

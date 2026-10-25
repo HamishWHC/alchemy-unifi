@@ -1,6 +1,6 @@
 # @alchemy-unifi/network
 
-[Alchemy](https://alchemy.run) provider for the UniFi Network application. Not yet usable: see [the architecture doc](../../docs/architecture.md).
+[Alchemy](https://alchemy.run) provider for the UniFi Network application. Not yet usable: no resources are implemented. See [the docs](../../docs/README.md).
 
 ```ts
 import * as UnifiNetwork from "@alchemy-unifi/network";
