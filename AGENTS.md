@@ -5,6 +5,7 @@ Things you must know that aren't obvious from the code.
 ## Documentation
 
 - **Docs live in `docs/`, one file per subject**, with the overview in `docs/README.md`. They describe the current state only.
+- **Plans** for future or in-progress work go in `plans/` (versioned). Delete a plan when it's completed or cancelled; anything still worth knowing goes into `docs/` or the code. `_scratch/` (gitignored) is for session-local notes and plans.
 
 ## Safety
 
