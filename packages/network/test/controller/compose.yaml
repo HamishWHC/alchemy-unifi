@@ -1,0 +1,61 @@
+# Disposable UniFi Network Application for provider tests, made to accept API
+# keys like a UniFi OS console:
+#
+#   test ──X-API-KEY──▶ unifi-os (fake UniFi OS proxy, :18080/proxy/network/*)
+#                          │ X-ApiKeyId
+#                          ▼
+#                       unifi (Network 10.6.109 + api-key-agent) ──▶ unifi-os (fake UniFi Core, 127.0.0.1:11081)
+#
+# The standalone UI also stays available at https://localhost:18443.
+services:
+  mongo:
+    image: mongo:7.0
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root
+      MONGO_INITDB_DATABASE: admin
+    volumes:
+      - ./init-mongo.sh:/docker-entrypoint-initdb.d/init-mongo.sh:ro
+
+  agent:
+    image: eclipse-temurin:25-jdk
+    command: ["/agent-src/build.sh"]
+    volumes:
+      - ./agent:/agent-src:ro
+      - agent:/agent-out
+
+  unifi:
+    image: lscr.io/linuxserver/unifi-network-application:10.6.109
+    depends_on:
+      mongo:
+        condition: service_started
+      agent:
+        condition: service_completed_successfully
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: Etc/UTC
+      MONGO_USER: unifi
+      MONGO_PASS: unifi
+      MONGO_HOST: mongo
+      MONGO_PORT: "27017"
+      MONGO_DBNAME: unifi
+      MONGO_AUTHSOURCE: admin
+      JAVA_TOOL_OPTIONS: -javaagent:/agent/api-key-agent.jar -Dintegration.api.force.using.ucore.authentication=true
+    volumes:
+      - agent:/agent:ro
+      - ./internal-port.sh:/custom-cont-init.d/internal-port.sh:ro
+    ports:
+      - "18443:8443"
+      - "18080:18080"
+
+  unifi-os:
+    image: node:24-alpine
+    network_mode: service:unifi
+    depends_on: [unifi]
+    command: ["node", "/fake-unifi-os.mjs"]
+    volumes:
+      - ./fake-unifi-os.mjs:/fake-unifi-os.mjs:ro
+
+volumes:
+  agent:

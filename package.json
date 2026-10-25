@@ -1,0 +1,36 @@
+{
+	"name": "alchemy-unifi",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Alchemy providers for Ubiquiti UniFi.",
+	"license": "MIT",
+	"type": "module",
+	"scripts": {
+		"build": "turbo run build",
+		"check": "turbo run check",
+		"typecheck": "turbo run typecheck",
+		"test": "turbo run test",
+		"generate": "turbo run generate",
+		"lint": "oxlint",
+		"lint:fix": "oxlint --fix",
+		"fmt": "oxfmt",
+		"fmt:check": "oxfmt --check",
+		"release": "turbo run build && pnpm publish -r",
+		"prepare": "lefthook install && effect-tsgo patch"
+	},
+	"devDependencies": {
+		"@effect/tsgo": "catalog:",
+		"lefthook": "^2.2.2",
+		"oxfmt": "catalog:",
+		"oxlint": "catalog:",
+		"turbo": "^2.11.10",
+		"typescript": "catalog:"
+	},
+	"devEngines": {
+		"packageManager": {
+			"name": "pnpm",
+			"version": "^12.15.0",
+			"onFail": "download"
+		}
+	}
+}

@@ -1,0 +1,57 @@
+{
+	"$schema": "https://json.schemastore.org/tsconfig",
+	"compilerOptions": {
+		// Target & module layout
+		"target": "ES2023",
+		"module": "ESNext",
+		"moduleResolution": "Bundler",
+		"lib": ["ES2023", "DOM"],
+		"moduleDetection": "force",
+		"skipLibCheck": true,
+		"types": ["node", "@total-typescript/ts-reset"],
+
+		// Strictness.
+		"strict": true,
+		"noUncheckedIndexedAccess": true,
+		"exactOptionalPropertyTypes": true,
+		"noImplicitOverride": true,
+		"noFallthroughCasesInSwitch": true,
+		"noPropertyAccessFromIndexSignature": true,
+		"noImplicitReturns": true,
+		"useUnknownInCatchVariables": true,
+
+		// ESM ergonomics.
+		"verbatimModuleSyntax": true,
+		"isolatedModules": true,
+		"esModuleInterop": true,
+		"allowSyntheticDefaultImports": true,
+		"resolveJsonModule": true,
+		"allowImportingTsExtensions": true,
+		"forceConsistentCasingInFileNames": true,
+
+		// tsdown is used for builds.
+		"noEmit": true,
+
+		"plugins": [
+			{
+				"name": "@effect/language-service",
+				// Effect v4 HTTP modules are still "unstable"; alchemy depends on them too.
+				"diagnosticSeverity": {
+					"unstableApiUsage": "off",
+					// Alchemy's convention is `providers()` factories returning Layers.
+					"lazyEffect": "off"
+				},
+				"overrides": [
+					{
+						"include": ["**/src/**/*.ts"],
+						"options": { "diagnosticSeverity": { "floatingEffect": "error" } }
+					},
+					{
+						"include": ["**/src/sdk/services/**/*.ts"],
+						"options": { "diagnosticSeverity": { "schemaNumber": "off" } }
+					}
+				]
+			}
+		]
+	}
+}

@@ -1,0 +1,45 @@
+linkWorkspacePackages: true
+packages:
+  - "packages/*"
+catalog:
+  "@distilled.cloud/core": ^1.0.0-rc.17
+  "@effect/platform-node": ^4.0.6
+  "@effect/tsgo": ^0.56.1
+  "@effect/vitest": ^4.0.6
+  "@total-typescript/ts-reset": ^0.6.1
+  "@types/node": ^24.0.0
+  alchemy: ^2.0.0-beta.84
+  effect: ^4.0.6
+  oxfmt: ^0.74.0
+  oxlint: ^1.89.0
+  rolldown: ^1.2.13
+  tsdown: ^0.23.2
+  typescript: 7.1.0-beta
+  vitest: ^5.0.5
+# distilled's codegen imports these without declaring them.
+packageExtensions:
+  "@distilled.cloud/core":
+    peerDependencies:
+      "@effect/platform-node": "*"
+      rolldown: "*"
+    peerDependenciesMeta:
+      "@effect/platform-node":
+        optional: true
+      rolldown:
+        optional: true
+allowBuilds:
+  esbuild: true
+  lefthook: true
+  msgpackr-extract: false
+minimumReleaseAgeExclude:
+  - "@effect/tsgo-darwin-arm64@0.56.1"
+  - "@effect/tsgo-darwin-x64@0.56.1"
+  - "@effect/tsgo-linux-arm64@0.56.1"
+  - "@effect/tsgo-linux-arm@0.56.1"
+  - "@effect/tsgo-linux-x64@0.56.1"
+  - "@effect/tsgo-win32-arm64@0.56.1"
+  - "@effect/tsgo-win32-x64@0.56.1"
+  - "@effect/tsgo@0.56.1"
+versioning:
+  changelog:
+    storage: repository

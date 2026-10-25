@@ -1,0 +1,20 @@
+{
+	"$schema": "./node_modules/oxfmt/configuration_schema.json",
+	"printWidth": 120,
+	"tabWidth": 4,
+	"useTabs": true,
+	"semi": true,
+	"singleQuote": false,
+	"trailingComma": "all",
+	"insertFinalNewline": true,
+	"overrides": [
+		{
+			"files": ["**/*.yaml", "**/*.yml"],
+			"options": {
+				"tabWidth": 2,
+				"useTabs": false
+			}
+		}
+	],
+	"ignorePatterns": ["**/.generated-specs/**"]
+}

@@ -1,0 +1,12 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - name: fmt
+      glob: "*.{ts,tsx,js,jsx,mjs,cjs,json,jsonc,md,yml,yaml}"
+      run: pnpm fmt:check {staged_files}
+    - name: lint
+      glob: "*.{ts,tsx,js,jsx,mjs,cjs}"
+      run: pnpm lint {staged_files}
+    - name: typecheck
+      glob: "*.{ts,tsx}"
+      run: pnpm run typecheck

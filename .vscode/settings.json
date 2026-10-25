@@ -1,0 +1,10 @@
+{
+	"editor.defaultFormatter": "oxc.oxc-vscode",
+	"oxc.unusedDisableDirectives": "warn",
+	"oxc.useExecPath": true,
+	"oxc.path.oxfmt": "./node_modules/oxfmt/bin/oxfmt",
+	"oxc.path.oxlint": "./node_modules/oxlint/bin/oxlint",
+	"editor.codeActionsOnSave": {
+		"source.removeUnusedImports": "explicit"
+	}
+}

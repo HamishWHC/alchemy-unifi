@@ -1,0 +1,24 @@
+{
+	"$schema": "./node_modules/turbo/schema.json",
+	"tasks": {
+		"generate": {
+			"inputs": ["openapi/**", "scripts/**"],
+			"outputs": ["src/generated/**"]
+		},
+		"build": {
+			"dependsOn": ["^build"],
+			"outputs": ["dist/**"]
+		},
+		"typecheck": {
+			"dependsOn": ["^typecheck"]
+		},
+		"test": {},
+		"lint": {},
+		"lint:fix": {},
+		"fmt": {},
+		"fmt:check": {},
+		"check": {
+			"dependsOn": ["typecheck", "lint", "fmt:check"]
+		}
+	}
+}
