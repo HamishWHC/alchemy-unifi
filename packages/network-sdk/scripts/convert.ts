@@ -5,9 +5,8 @@
  */
 import * as path from "node:path";
 import { runOpenApiConvert } from "@distilled.cloud/core/codegen/openapi-cli";
+import { SPEC_VERSION } from "../src/version.ts";
 import { normalise } from "./normalise-spec.ts";
-
-export const SPEC_VERSION = "10.6.106";
 
 await runOpenApiConvert({
 	root: path.resolve(import.meta.dirname, ".."),

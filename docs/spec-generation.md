@@ -44,6 +44,6 @@ Never edit `src/services`; changes there are lost on the next generate.
 ## Bumping the spec
 
 1. Download `https://developer.ui.com/network/v<version>/openapi.json` into `openapi/network-<version>.json`.
-2. Update `SPEC_VERSION` in `scripts/convert.ts`.
+2. Update `SPEC_VERSION` in `src/version.ts`. The provider warns when a console's major.minor version differs from it.
 3. Run `pnpm generate`, then fix any compile errors in hand-written code.
 4. Re-check the spec-quirk list in [unifi-api.md](unifi-api.md) against the test controller.

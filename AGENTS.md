@@ -18,6 +18,8 @@ Things you must know that aren't obvious from the code.
 
 ## Conventions and preferences
 
+- **Provider code calls the SDK through `withConnection`** (`packages/network/src/Connection.ts`). Never provide an `HttpClient` from `providers()`: lifecycle operations run in the stack's merged context, so it would replace other providers' clients (see `docs/connection.md`).
+
 - **Follow existing Alchemy provider conventions** before inventing anything: naming, structural `{ fooId }` references, `<thing>Id` attributes, SCREAMING_SNAKE constants, `providers()` layout, auth providers, lifecycle semantics. When unsure, read Alchemy's source (`github.com/alchemy-run/alchemy`: `packages/neon`, `packages/cloudflare`) and copy the closest provider.
 - **Cover the whole Network API over time**, including deployment-specific things (WANs, devices). Whether a stack manages them is the consumer's choice.
 - **Support only the latest stable UniFi Network release.**

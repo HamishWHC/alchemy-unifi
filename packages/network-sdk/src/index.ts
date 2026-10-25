@@ -18,5 +18,6 @@ export * as T from "./traits.ts";
 export { UnifiNetworkProtocol, type UnifiNetworkOpError, type UnifiNetworkOpContext } from "./protocol.ts";
 export { paginateOffset } from "./pagination.ts";
 export * as Retry from "./retry.ts";
+export { SPEC_VERSION } from "./version.ts";
 export * as Services from "./services/index.ts";
 export * from "./services/network.ts";
