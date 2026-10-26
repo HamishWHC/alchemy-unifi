@@ -50,6 +50,6 @@ Things the types don't make obvious:
 ## Known gaps
 
 - **Untyped members.** 24 members are `unknown` because UniFi's spec gives them no schema: ACL/firewall `sourceFilter`/`destinationFilter`, Wi-Fi `radiusConfiguration`, device `accessPoint`, and a few metadata fields.
-- **Undocumented required fields.** Some fields the spec marks optional are required by the server (see [unifi-api.md](unifi-api.md#behaviour-not-in-the-spec)).
+- **Undocumented required fields.** A few fields the spec marks optional are required by the server, depending on other fields (see [unifi-api.md](unifi-api.md#behaviour-not-in-the-spec)). The provider's props types enforce them.
 
-Fix either with a spec patch; see [spec-generation.md](spec-generation.md#fixing-the-spec).
+Patches (`packages/network-sdk/patches/`) can fix either; so far one marks Wi-Fi passphrases sensitive, so they decode as `Redacted` and accept `Redacted`. See [spec-generation.md](spec-generation.md#fixing-the-spec).

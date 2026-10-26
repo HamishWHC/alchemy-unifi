@@ -109,6 +109,7 @@ const adminSession = Effect.gen(function* () {
 			Effect.map(({ meta }) => meta.up),
 		),
 		login: post("/api/login", ADMIN),
+		get: (path: string) => client.get(path).pipe(Effect.mapError(fail(`GET ${path} failed`))),
 		post,
 		listSites: client.get("/api/self/sites").pipe(
 			Effect.flatMap(HttpClientResponse.schemaBodyJson(LegacySites)),
@@ -157,10 +158,14 @@ const ensureSetUp = (session: AdminSession) =>
 /** A locally administered MAC derived from the site's ID, so each site's fake gateway is distinct. */
 const gatewayMac = (site: LegacySite) => ["02", "00", ...(site._id.slice(-8).match(/../g) ?? [])].join(":");
 
+/** A new site answers 503 for a while when several are created at once. */
+const settled = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+	effect.pipe(Effect.retry(Schedule.spaced("1 second").pipe(Schedule.upTo({ duration: "1 minute" }))));
+
 /**
  * Makes a site manageable like a real console's: an offline UDM Pro as its
  * gateway (gateway-managed networks need one), then the real zone-based
- * firewall migration, which creates the built-in zones. Both are idempotent.
+ * firewall migration, which creates the built-in zones. Idempotent.
  */
 const prepareSite = (session: AdminSession, site: LegacySite) =>
 	Effect.gen(function* () {
@@ -178,7 +183,9 @@ const prepareSite = (session: AdminSession, site: LegacySite) =>
 		yield* mongo(
 			`db.getSiblingDB("unifi").device.updateOne({ mac: ${JSON.stringify(device.mac)} }, { $setOnInsert: ${JSON.stringify(device)} }, { upsert: true })`,
 		);
-		yield* session.post(`/v2/api/site/${site.name}/firewall/migrate`, {});
+		// The controller only notices a device inserted behind its back once it loads the site's devices, which reading them forces.
+		yield* settled(session.get(`/api/s/${site.name}/stat/device`));
+		yield* settled(session.post(`/v2/api/site/${site.name}/firewall/migrate`, {}));
 	});
 
 const waitFor = <A, E, R>(what: string, check: Effect.Effect<A, E, R>) =>

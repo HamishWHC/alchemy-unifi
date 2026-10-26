@@ -57,7 +57,7 @@ It targets obfuscated class and method names (`com/ubnt/net/g/oViVvFSgD`, `com/u
 
 ### Why the fake gateway and migration exist
 
-Every prepared site (the default one, and each test site) gets both:
+Every prepared site (the default one, and each test site) gets both, plus two workarounds: reading the site's devices (`/api/s/{site}/stat/device`) right after inserting the gateway, since otherwise the controller takes up to about a minute to notice it; and retries, since a new site answers 503 for a while when several are created at once.
 
 - Gateway-managed networks need a gateway on the site. The harness inserts an offline UDM Pro into the `device` collection, which satisfies the check. Its MAC is derived from the site's ID, so each site's is distinct.
 - Zone endpoints need the zone-based firewall migration. The harness runs the real one, so the system zones are genuine. Running it again is harmless (204).

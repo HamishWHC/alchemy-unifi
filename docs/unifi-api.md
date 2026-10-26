@@ -40,14 +40,26 @@ The standalone controller only uses this path if `integration.api.force.using.uc
 
 ## Behaviour not in the spec
 
-Verified on 10.6.109:
+Verified on 10.6.109 (the test controller):
 
 - **Gateway networks.** `management: "GATEWAY"` networks need a gateway device on the site (`api.network.validation.gateway-not-found-on-site`). Once zone-based firewall is enabled they also need `zoneId`.
 - **Zone-based firewall** is a per-site migration (`POST /v2/api/site/{site}/firewall/migrate`, legacy v2 API). Before it, zone endpoints return `api.firewall.zone-based-firewall-not-configured`. It creates six system zones: `Internal`, `External`, `Gateway`, `Vpn`, `Hotspot`, `Dmz` (note `Vpn` and `Dmz`), with `metadata.origin: "SYSTEM_DEFINED"`.
+- **Request bodies:** unknown properties are rejected (`Unknown request body property '$.id'`), so a `GET` response can't be sent back as an update without dropping `id`, `metadata` and (networks) `default`. Updates are full `PUT`s.
+- **Networks:**
+    - networks are keyed by an immutable UUID `id`; name and VLAN ID are ordinary fields, and changing the VLAN ID updates the network in place;
+    - VLAN IDs must be unique per site (names needn't be); the default network's must be 1, and any other network's greater than 1;
+    - deleting a network that a Wi-Fi broadcast uses fails unless `cascade=true`;
+    - listing networks just after deleting one can fail with 422 "Configured network does not exist" for a moment.
+- **Zones:**
+    - updates must include `networkIds` and replace the member list: networks left out move to `Internal`;
+    - a zone's `networkIds` lags a network joining it (by about 300 ms); the network's `zoneId` is current at once;
+    - deleting a zone moves its networks to `Internal`;
+    - built-in zones can be neither deleted nor renamed (422).
 - **Wi-Fi broadcasts:**
-    - WPA security requires `securityConfiguration.fastRoamingEnabled`;
-    - `bssTransitionEnabled`, `advertiseDeviceName` and `arpProxyEnabled` are required;
-    - `broadcastingFrequenciesGHz` takes numbers (`[2.4, 5]`), not strings.
+    - a standard broadcast with WPA security requires `securityConfiguration.fastRoamingEnabled` ("WPA security combined with standard WiFi requires fast roaming setting"); the spec marks it optional;
+    - `broadcastingFrequenciesGHz` takes numbers (`[2.4, 5]`), not strings;
+    - `network: { type: "NATIVE" }` is the default network, which can't be referenced as `SPECIFIC` by ID;
+    - WPA2 personal needs either preshared keys or both a network and a passphrase.
 - **Passphrases are readable.** `GET` on a Wi-Fi broadcast returns the passphrase in `securityConfiguration.passphrase`.
 - **Server defaults.** Responses include fields the request didn't set (e.g. `mdnsForwardingEnabled: true`, `dhcpConfiguration.domainName: ""`).
 - **Policy ordering.** `GET /firewall/policies/ordering?sourceFirewallZoneId=…&destinationFirewallZoneId=…` returns `{ orderedFirewallPolicyIds: { beforeSystemDefined: [...], afterSystemDefined: [...] } }`. New policies land at the end of `beforeSystemDefined`.

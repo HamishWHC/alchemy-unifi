@@ -12,7 +12,10 @@ import * as Layer from "effect/Layer";
  */
 export class UnifiNetworkReadCache extends Context.Service<UnifiNetworkReadCache, { readonly run: object }>()(
 	"UnifiNetwork::ReadCache",
-) {}
+) {
+	/** Alchemy's tag for environment services, which lets stack bodies (and so lookups) require this one. */
+	declare readonly kind: "Environment";
+}
 
 export const layer = Layer.sync(UnifiNetworkReadCache, () => ({ run: {} }));
 

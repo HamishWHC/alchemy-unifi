@@ -130,7 +130,10 @@ export const checkVersion = (applicationVersion: string) =>
 export class UnifiNetworkConnection extends Context.Service<
 	UnifiNetworkConnection,
 	Effect.Effect<Established, Sdk.ConfigError>
->()("UnifiNetwork::Connection") {}
+>()("UnifiNetwork::Connection") {
+	/** Alchemy's tag for environment services, which lets stack bodies (and so lookups) require this one. */
+	declare readonly kind: "Environment";
+}
 
 export const layer = Layer.effect(
 	UnifiNetworkConnection,

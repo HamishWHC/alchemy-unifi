@@ -46,6 +46,24 @@ export class AmbiguousSite extends Data.TaggedError("AmbiguousSite")<{
 	}
 }
 
+/** A resource referenced another that lives in a different site. */
+export class CrossSiteReference extends Data.TaggedError("CrossSiteReference")<{
+	readonly what: string;
+	readonly referencedSiteId: string;
+	readonly site: Site;
+}> {
+	readonly [UserFacingError]: true = true;
+	override get message() {
+		return `The referenced ${this.what} is in another site (${this.referencedSiteId}), not ${this.site.internalReference} (${this.site.name}). UniFi objects can only reference objects in their own site.`;
+	}
+}
+
+/** Fails if a reference carries a site ID (resources and lookups do) other than `site`'s. */
+export const checkSameSite = (what: string, referencedSiteId: string | undefined, site: Site) =>
+	referencedSiteId === undefined || referencedSiteId === site.id
+		? Effect.void
+		: Effect.fail(new CrossSiteReference({ what, referencedSiteId, site }));
+
 const loadSites = withConnection(
 	Sdk.getSiteOverviewPage.items({}).pipe(
 		Stream.map(({ id, internalReference, name }): Site => ({ id, internalReference, name })),

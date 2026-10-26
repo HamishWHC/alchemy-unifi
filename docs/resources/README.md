@@ -1,0 +1,30 @@
+# Resources
+
+`providers()` registers `FirewallZone`, `Network` and `WifiBroadcast`. Pages: [FirewallZone.md](FirewallZone.md), [Network.md](Network.md), [WifiBroadcast.md](WifiBroadcast.md).
+
+## Conventions
+
+- **Props are the Integration API's create/update body**, with three changes:
+    - an optional `site` (see [connection.md](../connection.md#sites));
+    - references in place of ID fields: `zone` instead of `zoneId`, `network` instead of a `{ type: "SPECIFIC", networkId }` object, `device` instead of `deviceId`;
+    - passphrases accept `Redacted` (the SDK marks them sensitive via `packages/network-sdk/patches/`).
+- **References are structural** (`{ firewallZoneId }`, `{ networkId }`), as in Alchemy's own providers: a resource, a lookup result or a literal object all fit, and a bare string never typechecks. A reference carrying a `siteId` (resources and lookups do) is checked against the referencing resource's site.
+- **Attributes** are `siteId`, `<thing>Id` and the fields worth noticing drift in (names, VLAN, zone, type). `alchemy drift` compares these.
+- **Unset optional props are left to the console** (user's decision): they're never sent or compared, and removing one later leaves the console's current value. The console fills defaults (e.g. `mdnsForwardingEnabled: true`, `dhcpConfiguration.domainName: ""`), so comparing whole objects would show permanent drift.
+
+## Lifecycle
+
+| Op          | Behaviour                                                                                                                                                                                                                                                           |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `reconcile` | Get the object by ID; missing (404, or another site) ⇒ create. Otherwise compare only the fields props set, and only on a difference `PUT` the console's current body with props laid over it (union variants that differ, e.g. a DHCP `mode`, are replaced whole). |
+| `diff`      | `replace` when the site changes, or the variant (`management`, Wi-Fi `type`); otherwise Alchemy's default (update when props change). Props that depend on undeployed resources are treated as unknown.                                                             |
+| `read`      | By ID; without state, by natural key, returned as `Unowned` so adoption needs `--adopt`. Natural keys: zone name (custom zones only), network VLAN ID (unique per site; adopting renames to match props), Wi-Fi name. Several matches ⇒ nothing adopted.            |
+| `delete`    | 404 is success, as Alchemy requires. The site's default network is never deleted.                                                                                                                                                                                   |
+| `list`      | User-defined objects in the profile's site, for `alchemy nuke`.                                                                                                                                                                                                     |
+
+- **A deploy with unchanged props is a no-op**, so drift in the console is repaired by the next deploy that changes the resource, or by `alchemy drift`.
+- **Reads go through the read cache** (one list per type per site per run); writes invalidate it.
+
+## Lookups
+
+`FirewallZone.lookup({ name })`, `Network.lookup({ name } | { vlanId })` and `WifiBroadcast.lookup({ name })` (each also takes `site`) return the same attributes as the resource, so they fit wherever a reference does. They run at plan time in the stack body. Alchemy only lets stack bodies fail with `ConfigError`, so a lookup that finds nothing (or several) **dies** with a user-facing `LookupNotFound` / `LookupAmbiguous` rather than failing with a typed error. `UnifiNetworkConnection` and `UnifiNetworkReadCache` carry Alchemy's `kind: "Environment"` tag so stack bodies may require them.

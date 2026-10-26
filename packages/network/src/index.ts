@@ -6,3 +6,7 @@ export { Providers, providers } from "./Providers.ts";
 export * as ReadCache from "./ReadCache.ts";
 export { UnifiNetworkReadCache } from "./ReadCache.ts";
 export * from "./Site.ts";
+export * from "./FirewallZone.ts";
+export * from "./Lookup.ts";
+export * from "./Network.ts";
+export * from "./WifiBroadcast.ts";

@@ -3,6 +3,9 @@ import * as Layer from "effect/Layer";
 import { UnifiNetworkAuth } from "./AuthProvider.ts";
 import * as Connection from "./Connection.ts";
 import * as Credentials from "./Credentials.ts";
+import { FirewallZone, FirewallZoneProvider } from "./FirewallZone.ts";
+import { Network, NetworkProvider } from "./Network.ts";
+import { WifiBroadcast, WifiBroadcastProvider } from "./WifiBroadcast.ts";
 import * as ReadCache from "./ReadCache.ts";
 
 export class Providers extends Provider.ProviderCollection<Providers>()("UnifiNetwork") {}
@@ -22,7 +25,8 @@ export class Providers extends Provider.ProviderCollection<Providers>()("UnifiNe
  * get it through `UnifiNetworkConnection` instead.
  */
 export const providers = () =>
-	Layer.effect(Providers, Provider.collection([])).pipe(
+	Layer.effect(Providers, Provider.collection([FirewallZone, Network, WifiBroadcast])).pipe(
+		Layer.provide(Layer.mergeAll(FirewallZoneProvider(), NetworkProvider(), WifiBroadcastProvider())),
 		Layer.provideMerge(Layer.merge(Connection.layer, ReadCache.layer)),
 		Layer.provideMerge(Credentials.fromAuthProvider()),
 		Layer.provideMerge(UnifiNetworkAuth),

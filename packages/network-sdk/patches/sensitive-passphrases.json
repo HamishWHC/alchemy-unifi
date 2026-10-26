@@ -1,0 +1,27 @@
+{
+	"description": "Wi-Fi passphrases are secrets: mark them sensitive so the SDK accepts Redacted values and redacts them in logs.",
+	"patches": [
+		{
+			"op": "add",
+			"path": "/shapes/com.ui.network#IntegrationWifiWpa2PersonalSecurityConfigurationDetailDto/members/passphrase/traits",
+			"value": {
+				"smithy.api#sensitive": {}
+			}
+		},
+		{
+			"op": "add",
+			"path": "/shapes/com.ui.network#IntegrationWifiWpa2Wpa3PersonalSecurityConfigurationDetailDto/members/passphrase/traits/smithy.api#sensitive",
+			"value": {}
+		},
+		{
+			"op": "add",
+			"path": "/shapes/com.ui.network#IntegrationWifiWpa3PersonalSecurityConfigurationDetailDto/members/passphrase/traits/smithy.api#sensitive",
+			"value": {}
+		},
+		{
+			"op": "add",
+			"path": "/shapes/com.ui.network#IntegrationWifiPresharedKeyDto/members/passphrase/traits/smithy.api#sensitive",
+			"value": {}
+		}
+	]
+}
