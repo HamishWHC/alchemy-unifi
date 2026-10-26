@@ -29,6 +29,21 @@ const unwrap = (value: unknown): unknown => {
  */
 export const isCurrent = (desired: unknown, observed: unknown) => deepEqual(unwrap(desired), unwrap(observed));
 
+/**
+ * `value` with every array sorted, recursively, for fields whose arrays are
+ * sets: the console keeps them in an order of its own (e.g. a firewall
+ * policy's port list), so order mustn't count as a difference.
+ */
+export const sortArrays = (value: unknown): unknown => {
+	if (Array.isArray(value)) {
+		return value.map(sortArrays).toSorted((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+	}
+	if (typeof value === "object" && value !== null && !Redacted.isRedacted(value)) {
+		return Object.fromEntries(Object.entries(value).map(([key, nested]) => [key, sortArrays(nested)]));
+	}
+	return value;
+};
+
 /** `record` without `keys`, e.g. read-only fields the console rejects in request bodies. */
 export const omitKeys = (record: object, keys: ReadonlyArray<string>): Record<string, unknown> =>
 	Object.fromEntries(Object.entries(record).filter(([key]) => !keys.includes(key)));

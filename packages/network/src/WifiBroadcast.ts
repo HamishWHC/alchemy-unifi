@@ -268,13 +268,13 @@ export const WifiBroadcastProvider = () =>
 								const created = yield* withConnection(
 									Sdk.createWifiBroadcast({ siteId: site.id, body }),
 								).pipe(write);
-								return yield* attributesOf(site.id, created.id);
+								return toAttributes(site.id, created);
 							}
 							if (isCurrent(body, comparable(observed))) return toAttributes(site.id, observed);
-							yield* withConnection(
+							const updated = yield* withConnection(
 								Sdk.updateWifiBroadcast({ siteId: site.id, wifiBroadcastId: observed.id, body }),
 							).pipe(write);
-							return yield* attributesOf(site.id, observed.id);
+							return toAttributes(site.id, updated);
 						}),
 					),
 

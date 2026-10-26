@@ -57,8 +57,9 @@ const toAttributes = (siteId: string, policy: Sdk.DNSPolicy): DnsPolicyAttribute
 /** Fields the console reports but rejects in request bodies. */
 const READ_ONLY = ["id", "metadata"];
 
+/** A policy by ID, from the run's cached list, which returns whole policies (one request for every policy in a plan). */
 const getPolicy = (siteId: string, dnsPolicyId: string) =>
-	withConnection(Sdk.getDnsPolicy({ siteId, dnsPolicyId })).pipe(Effect.catchTag("NotFound", () => Effect.undefined));
+	listDnsPolicies(siteId).pipe(Effect.map((policies) => policies.find((p) => p.id === dnsPolicyId)));
 
 /**
  * The existing policy `body` describes: the only one with its type and

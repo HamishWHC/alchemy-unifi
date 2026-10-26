@@ -30,7 +30,7 @@
 
 - **Adoption of a resource whose props reference another resource adopted in the same run is deferred**: Alchemy can't probe while props hold unresolved outputs, so `plan --adopt` shows it as `create`, and the deploy runs `read` just before creating and adopts the match instead. Verified against the test controller and both live consoles.
 - **A deploy with unchanged props is a no-op**: Alchemy's plan doesn't read resources whose props are unchanged. `alchemy drift` (or `deploy --detect-drift`) reads them, reports changes, and repairs them.
-- **Reads go through the read cache** (one list per type per site per run); writes invalidate it.
+- **Reads go through the read cache** (one list per type per site per run); writes invalidate it. Firewall policies, traffic-matching lists and DNS policies are read by ID from that list, since it returns whole objects (verified equal to `GET` and write responses), so a plan reading 35 policies costs one request; networks and Wi-Fi broadcasts need a `GET` each for their details. Writes take their attributes from the response.
 
 ## Lookups
 

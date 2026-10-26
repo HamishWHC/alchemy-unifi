@@ -40,7 +40,7 @@ Both services resolve on first use, so building `providers()` never needs a prof
 - **Base URL probe.** A `local` URL is tried as a UniFi OS console (`{url}/proxy/network/integration`), then as a standalone controller (`{url}/integration`), with `GET /v1/info`. A 404 moves on; anything else stops. `remote` uses `https://api.ui.com/v1/connector/consoles/{consoleId}/proxy/network/integration`, where `consoleId` is the Site Manager host `id`; the connector accepts `X-API-KEY` (verified by hand on a real console, since CI can't reach one).
 - **Retries:** the probe uses the SDK's default retries (about 20 s for transport errors), except for certificate failures, which retrying can't fix.
 - **Version check:** a warning, not a failure, when the console's major.minor differs from the SDK's `SPEC_VERSION`.
-- **Remote rate limit:** a 90 requests/minute token bucket per console (the connector allows 100), in front of the SDK's 429 retries.
+- **Remote rate limit:** a 90 requests/minute token bucket per console (the connector allows 100), in front of the SDK's 429 retries. A run beyond the 90-request burst waits ~0.7 s per request, so resources read through lists where possible (see [resources/README.md](resources/README.md#lifecycle)); local connections aren't limited.
 
 ## Sites
 

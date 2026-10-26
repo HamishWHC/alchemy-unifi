@@ -72,6 +72,7 @@ Verified on 10.6.109 (the test controller):
     - names aren't unique, even within a zone pair;
     - `PUT` can change a policy's zones; it moves to the end of the new pair's `beforeSystemDefined`;
     - `PATCH` only takes `loggingEnabled`;
+    - lists inside a policy (ports, addresses, connection states) come back in an order of the console's own;
     - derived policies (`metadata.origin: "DERIVED"`) can't be updated or deleted ("Deletion of derived firewall policy is not allowed"), aren't in orderings, and fresh sites already have some (`Internal` → `Gateway`, no name);
     - a `NETWORK` traffic filter naming an unmanaged network fails with a bare 500 ("Unexpected error"), in the source or the destination, rather than a validation error: the gateway doesn't route that network, so can't filter it;
     - a destination `NETWORK` filter towards `External` is rejected properly (400 "Destination traffic filter not compatible with the zone");

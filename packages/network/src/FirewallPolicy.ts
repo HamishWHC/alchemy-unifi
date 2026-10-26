@@ -7,7 +7,7 @@ import * as Effect from "effect/Effect";
 import * as Stream from "effect/Stream";
 import { withConnection } from "./Connection.ts";
 import { type FirewallZoneReference, resolveFirewallZone } from "./FirewallZone.ts";
-import { isCurrent, omitKeys } from "./internal/Fields.ts";
+import { isCurrent, omitKeys, sortArrays } from "./internal/Fields.ts";
 import { plannedString, UNKNOWN } from "./internal/Plan.ts";
 import { captureServices } from "./internal/Services.ts";
 import { describeQuery, LookupAmbiguous, LookupNotFound } from "./Lookup.ts";
@@ -264,10 +264,13 @@ const toBody = Effect.fn(function* (props: FirewallPolicyProps, site: Site) {
 	} satisfies Omit<Sdk.CreateFirewallPolicyRequest, "siteId">;
 });
 
+/**
+ * A policy by ID, from the run's cached list: the list returns whole
+ * policies, so a plan reading every policy costs one request, not one each
+ * (this matters through the ui.com connector's rate limit).
+ */
 const getPolicy = (siteId: string, firewallPolicyId: string) =>
-	withConnection(Sdk.getFirewallPolicy({ siteId, firewallPolicyId })).pipe(
-		Effect.catchTag("NotFound", () => Effect.undefined),
-	);
+	listFirewallPolicies(siteId).pipe(Effect.map((policies) => policies.find((p) => p.id === firewallPolicyId)));
 
 /** User-defined policies named `name` from `source` to `destination`. Names aren't unique, even within a zone pair. */
 const findByName = Effect.fn(function* (
@@ -408,7 +411,10 @@ export const FirewallPolicyProvider = () =>
 								).pipe(write);
 								return toAttributes(site.id, created);
 							}
-							if (isCurrent(body, omitKeys(observed, READ_ONLY))) return toAttributes(site.id, observed);
+							// Every list in a policy is a set (ports, addresses, networks, states), and the console reorders them.
+							if (isCurrent(sortArrays(body), sortArrays(omitKeys(observed, READ_ONLY)))) {
+								return toAttributes(site.id, observed);
+							}
 							// A full PUT of the body: optional fields it leaves out are removed.
 							const updated = yield* withConnection(
 								Sdk.updateFirewallPolicy({

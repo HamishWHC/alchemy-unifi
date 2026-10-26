@@ -198,6 +198,13 @@ test.provider("lists, DNS policies and firewall policies: no defaults", (stack) 
 				};
 			}),
 		);
+		// Reads come from list endpoints; drift needs them to match what writes returned.
+		expect((yield* UnifiNetwork.FirewallPolicy.lookup({ name: "Minimal policy" })).config).toEqual(
+			deployed.policy.config,
+		);
+		expect((yield* UnifiNetwork.TrafficMatchingList.lookup({ name: "Minimal list" })).config).toEqual(
+			deployed.list.config,
+		);
 		expect(deployed.list.config).toEqual(list);
 		expect(deployed.record.config).toEqual(record);
 		expect(deployed.policy.config).toEqual({

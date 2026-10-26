@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as Redacted from "effect/Redacted";
-import { isCurrent, omitKeys } from "../src/internal/Fields.ts";
+import { isCurrent, omitKeys, sortArrays } from "../src/internal/Fields.ts";
 
 const observed = {
 	name: "Guest",
@@ -46,5 +46,14 @@ describe("isCurrent", () => {
 describe("omitKeys", () => {
 	it("drops the given top-level keys", () => {
 		expect(omitKeys({ id: "1", metadata: {}, name: "a" }, ["id", "metadata"])).toEqual({ name: "a" });
+	});
+});
+
+describe("sortArrays", () => {
+	it("sorts arrays at any depth, so set-like lists compare regardless of order", () => {
+		const a = { filter: { items: [{ value: 67 }, { value: 53 }], states: ["NEW", "INVALID"] } };
+		const b = { filter: { items: [{ value: 53 }, { value: 67 }], states: ["INVALID", "NEW"] } };
+		expect(isCurrent(sortArrays(a), sortArrays(b))).toBe(true);
+		expect(isCurrent(a, b)).toBe(false);
 	});
 });

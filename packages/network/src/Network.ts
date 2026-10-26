@@ -298,13 +298,13 @@ export const NetworkProvider = () =>
 								const created = yield* withConnection(
 									Sdk.createNetwork({ siteId: site.id, body }),
 								).pipe(write);
-								return yield* attributesOf(site.id, created.id);
+								return toAttributes(site.id, created);
 							}
 							if (isCurrent(body, omitKeys(observed, READ_ONLY))) return toAttributes(site.id, observed);
-							yield* withConnection(
+							const updated = yield* withConnection(
 								Sdk.updateNetwork({ siteId: site.id, networkId: observed.id, body }),
 							).pipe(write);
-							return yield* attributesOf(site.id, observed.id);
+							return toAttributes(site.id, updated);
 						}),
 					),
 

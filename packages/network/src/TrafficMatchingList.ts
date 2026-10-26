@@ -100,10 +100,9 @@ const policiesReferencing = (siteId: string, trafficMatchingListId: string) =>
 export const resolveTrafficMatchingList = (reference: TrafficMatchingListReference, site: Site) =>
 	checkSameSite("traffic-matching list", reference.siteId, site).pipe(Effect.as(reference.trafficMatchingListId));
 
+/** A list by ID, from the run's cached lists, which come whole (one request for every list in a plan). */
 const getList = (siteId: string, trafficMatchingListId: string) =>
-	withConnection(Sdk.getTrafficMatchingList({ siteId, trafficMatchingListId })).pipe(
-		Effect.catchTag("NotFound", () => Effect.undefined),
-	);
+	listTrafficMatchingLists(siteId).pipe(Effect.map((lists) => lists.find((l) => l.id === trafficMatchingListId)));
 
 /**
  * A named list of IPv4 addresses, IPv6 addresses or ports, which firewall
