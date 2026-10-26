@@ -16,6 +16,7 @@
 		"fmt": "oxfmt",
 		"fmt:check": "oxfmt --check",
 		"release": "turbo run build && pnpm publish -r",
+		"cloc": "cloc --vcs=git --fullpath --not-match-d='/packages/network-sdk/(openapi|src/services)(/|$)' --not-match-f='/pnpm-lock\\.yaml$'",
 		"prepare": "lefthook install && effect-tsgo patch"
 	},
 	"devDependencies": {
