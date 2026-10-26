@@ -15,7 +15,8 @@
 		"directory": "packages/network-sdk"
 	},
 	"files": [
-		"dist"
+		"dist",
+		"src"
 	],
 	"type": "module",
 	"sideEffects": false,

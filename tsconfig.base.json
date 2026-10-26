@@ -31,8 +31,11 @@
 		"allowImportingTsExtensions": true,
 		"forceConsistentCasingInFileNames": true,
 
-		// tsdown is used for builds.
+		// tsdown is used for builds. Its tsgo declaration generator only emits
+		// source mappings when declaration maps are on here (see the tsdown configs).
 		"noEmit": true,
+		"declaration": true,
+		"declarationMap": true,
 
 		"plugins": [
 			{
