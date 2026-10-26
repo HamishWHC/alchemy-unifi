@@ -1797,19 +1797,11 @@ export interface IntegrationVoucherCreationResultDto {
 	vouchers?: IntegrationVoucherCreationResultDtoVouchersList;
 }
 export type IntegrationIotOptimizedWifiBroadcastCreateUpdateDtoType = "IOT_OPTIMIZED";
-export type IntegrationWifiBasicDataRateConfigurationDto5 = "6000" | "9000" | "12000" | "24000";
-export type IntegrationWifiBasicDataRateConfigurationDto24 =
-	| "1000"
-	| "2000"
-	| "5500"
-	| "6000"
-	| "9000"
-	| "11000"
-	| "12000"
-	| "24000";
 export interface IntegrationWifiBasicDataRateConfigurationDto {
-	_5: IntegrationWifiBasicDataRateConfigurationDto5 | (string & {});
-	_2_4: IntegrationWifiBasicDataRateConfigurationDto24 | (string & {});
+	/** Basic data rate for 5 GHz in kbps: 6000, 9000, 12000 or 24000. */
+	_5: number;
+	/** Basic data rate for 2.4 GHz in kbps: 1000, 2000, 5500, 6000, 9000, 11000, 12000 or 24000. */
+	_2_4: number;
 }
 export type IntegrationWifiBlackoutScheduleConfigurationPerAllDayDtoType = "ALL_DAY";
 export type IntegrationWifiBlackoutScheduleConfigurationPerAllDayDtoDay =
@@ -7912,8 +7904,8 @@ function __c111(j: number): any {
 		case 0:
 			return S.suspend(() =>
 				S.Struct({
-					_5: S.String.pipe(T.Body("5")),
-					_2_4: S.String.pipe(T.Body("2.4")),
+					_5: S.Number.pipe(T.Body("5")),
+					_2_4: S.Number.pipe(T.Body("2.4")),
 				}),
 			).annotate({ identifier: "IntegrationWifiBasicDataRateConfigurationDto" });
 		case 1:

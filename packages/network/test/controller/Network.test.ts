@@ -77,11 +77,12 @@ test.provider("moves a network into a zone from the same stack", (stack) =>
 	}),
 );
 
-test.provider("updates only what props set, and repairs drift in those fields", (stack) =>
+test.provider("puts back UI changes on the next update, including to fields props leave unset", (stack) =>
 	Effect.gen(function* () {
 		const siteId = current().site.id;
 		const created = (yield* stack.deploy(network(gateway(52)))).network;
-		// Behind the provider's back: one field props set, one they don't.
+		expect(created.config).toMatchObject({ mdnsForwardingEnabled: true, isolationEnabled: false });
+		// Behind the provider's back: one field props set, one they leave to the default.
 		const live = yield* getNetwork(created.networkId);
 		if (live.management !== "GATEWAY") throw new Error("expected a gateway network");
 		const { id: _id, metadata: _metadata, default: _default, ...body } = live;
@@ -92,12 +93,17 @@ test.provider("updates only what props set, and repairs drift in those fields", 
 				body: { ...body, isolationEnabled: true, mdnsForwardingEnabled: false },
 			}),
 		);
-		yield* stack.deploy(network(gateway(52, { name: "Renamed" })));
+		// What `alchemy drift` compares: the attributes `read` builds now differ from the deployed ones.
+		const observed = yield* UnifiNetwork.Network.lookup({ vlanId: 52 });
+		expect(observed.config).not.toEqual(created.config);
+
+		const repaired = (yield* stack.deploy(network(gateway(52, { name: "Renamed" })))).network;
 		expect(yield* getNetwork(created.networkId)).toMatchObject({
 			name: "Renamed",
 			isolationEnabled: false,
-			mdnsForwardingEnabled: false,
+			mdnsForwardingEnabled: true,
 		});
+		expect((yield* UnifiNetwork.Network.lookup({ vlanId: 52 })).config).toEqual(repaired.config);
 	}),
 );
 
@@ -136,6 +142,7 @@ test.provider("adopts the default network by VLAN ID and renames it, never repla
 			cellularBackupEnabled: live.cellularBackupEnabled,
 			internetAccessEnabled: live.internetAccessEnabled,
 			isolationEnabled: false,
+			zone: UnifiNetwork.FirewallZone.INTERNAL,
 			ipv4Configuration: live.ipv4Configuration,
 		} satisfies UnifiNetwork.GatewayNetworkProps;
 		const adopted = (yield* stack.deploy(network(management).pipe(adopt(true)))).network;

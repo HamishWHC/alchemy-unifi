@@ -8,7 +8,7 @@ import * as Data from "effect/Data";
 import * as Effect from "effect/Effect";
 import * as Stream from "effect/Stream";
 import { withConnection } from "./Connection.ts";
-import { matches, mergeOver, omitKeys } from "./internal/Fields.ts";
+import { type DistributiveOmit, isCurrent, omitKeys } from "./internal/Fields.ts";
 import { plannedString, UNKNOWN } from "./internal/Plan.ts";
 import { captureServices } from "./internal/Services.ts";
 import { describeQuery, LookupNotFound } from "./Lookup.ts";
@@ -36,6 +36,8 @@ export interface TrafficMatchingListAttributes {
 	trafficMatchingListId: string;
 	name: string;
 	type: TrafficMatchingListProps["type"];
+	/** The whole list as the console reports it, so `alchemy drift` sees any change. */
+	config: DistributiveOmit<Sdk.TrafficMatchingList, "id">;
 }
 
 export interface TrafficMatchingList extends Resource<
@@ -54,12 +56,10 @@ const listsKey = ReadCache.key<ReadonlyArray<Sdk.TrafficMatchingList>, Effect.Er
 /** A site's traffic-matching lists, listed once per run. */
 export const listTrafficMatchingLists = (siteId: string) => ReadCache.cached(listsKey, siteId, loadLists(siteId));
 
-const toAttributes = (siteId: string, list: Sdk.TrafficMatchingList): TrafficMatchingListAttributes => ({
-	siteId,
-	trafficMatchingListId: list.id,
-	name: list.name,
-	type: list.type,
-});
+const toAttributes = (siteId: string, list: Sdk.TrafficMatchingList): TrafficMatchingListAttributes => {
+	const { id, ...config } = list;
+	return { siteId, trafficMatchingListId: id, name: list.name, type: list.type, config };
+};
 
 /** Fields the console reports but rejects in request bodies. */
 const READ_ONLY = ["id"];
@@ -195,12 +195,12 @@ export const TrafficMatchingListProvider = () =>
 								).pipe(write);
 								return toAttributes(site.id, created);
 							}
-							if (matches(body, observed)) return toAttributes(site.id, observed);
+							if (isCurrent(body, omitKeys(observed, READ_ONLY))) return toAttributes(site.id, observed);
 							const updated = yield* withConnection(
 								Sdk.updateTrafficMatchingList({
 									siteId: site.id,
 									trafficMatchingListId: observed.id,
-									body: mergeOver(body, omitKeys(observed, READ_ONLY)),
+									body,
 								}),
 							).pipe(write);
 							return toAttributes(site.id, updated);
@@ -216,21 +216,22 @@ export const TrafficMatchingListProvider = () =>
 							}),
 						).pipe(
 							Effect.asVoid,
-							Effect.catchTag("NotFound", () => Effect.void),
-							// 422 "Selected traffic matching list is referenced by other resources".
-							Effect.catchTag("UnprocessableEntity", (error) =>
-								policiesReferencing(output.siteId, output.trafficMatchingListId).pipe(
-									Effect.flatMap((referencedBy) =>
-										Effect.fail(
-											new TrafficMatchingListInUse({
-												listName: output.name,
-												referencedBy,
-												detail: error.message,
-											}),
+							Effect.catchTags({
+								NotFound: () => Effect.void,
+								// 422 "Selected traffic matching list is referenced by other resources".
+								UnprocessableEntity: (error) =>
+									policiesReferencing(output.siteId, output.trafficMatchingListId).pipe(
+										Effect.flatMap((referencedBy) =>
+											Effect.fail(
+												new TrafficMatchingListInUse({
+													listName: output.name,
+													referencedBy,
+													detail: error.message,
+												}),
+											),
 										),
 									),
-								),
-							),
+							}),
 							ReadCache.invalidating(listsKey, output.siteId),
 						),
 					),

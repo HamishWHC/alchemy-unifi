@@ -75,3 +75,21 @@ test.provider("adopts by type and domain, using the value when a domain has seve
 		expect(yield* getPolicy(forward.id)).toMatchObject({ ipAddress: "192.168.2.54" });
 	}),
 );
+
+test.provider("puts back a record changed in the UI on the next update", (stack) =>
+	Effect.gen(function* () {
+		const created = (yield* stack.deploy(policy(aRecord("drift.home.arpa", "192.168.2.40")))).policy;
+		yield* sdk(
+			Sdk.updateDnsPolicy({
+				siteId: current().site.id,
+				dnsPolicyId: created.dnsPolicyId,
+				body: { ...aRecord("drift.home.arpa", "192.168.2.41"), ttlSeconds: 60 },
+			}),
+		);
+		expect(yield* getPolicy(created.dnsPolicyId)).toMatchObject({ ttlSeconds: 60 });
+		const repaired = (yield* stack.deploy(
+			policy({ ...aRecord("drift.home.arpa", "192.168.2.40"), enabled: false }),
+		)).policy;
+		expect(repaired.config).toEqual({ ...aRecord("drift.home.arpa", "192.168.2.40"), enabled: false });
+	}),
+);

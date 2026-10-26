@@ -7,7 +7,7 @@ import * as Effect from "effect/Effect";
 import * as Stream from "effect/Stream";
 import { withConnection } from "./Connection.ts";
 import { type FirewallZoneReference, resolveFirewallZone } from "./FirewallZone.ts";
-import { matches } from "./internal/Fields.ts";
+import { isCurrent, omitKeys } from "./internal/Fields.ts";
 import { plannedString, UNKNOWN } from "./internal/Plan.ts";
 import { captureServices } from "./internal/Services.ts";
 import { describeQuery, LookupAmbiguous, LookupNotFound } from "./Lookup.ts";
@@ -67,11 +67,9 @@ export interface FirewallPolicyEndpoint<Filter> {
  * Props are the Integration API's policy body, with zones, networks and
  * traffic-matching lists as references, plus `site`.
  *
- * Unlike other resources' props, unset optional fields get an explicit
- * default rather than keeping the console's value: leaving out
- * `trafficFilter`, `connectionStateFilter`, `ipsecFilter` or `schedule` means
- * "none", and leaving out `description` means blank, even if the policy has
- * one in the console.
+ * Props are authoritative, like every resource's: leaving out
+ * `trafficFilter`, `connectionStateFilter`, `ipsecFilter`, `schedule` or
+ * `description` means none, even if the policy has one in the console.
  */
 export interface FirewallPolicyProps extends Omit<
 	Sdk.CreateFirewallPolicyRequest,
@@ -95,6 +93,11 @@ export interface FirewallPolicyAttributes {
 	name: string;
 	sourceFirewallZoneId: string;
 	destinationFirewallZoneId: string;
+	/**
+	 * The whole policy as the console reports it, so `alchemy drift` sees any
+	 * change; without its `index`, which moves whenever its ordering changes.
+	 */
+	config: Omit<Sdk.FirewallPolicy, "id" | "metadata" | "index">;
 }
 
 export interface FirewallPolicy extends Resource<
@@ -119,13 +122,20 @@ export const listFirewallPolicies = (siteId: string) => ReadCache.cached(policie
 /** Policies the user made, as opposed to system-defined ones and ones UniFi derives (from UI Objects, say), which the provider never touches. */
 export const isUserDefined = (policy: Sdk.FirewallPolicy) => policy.metadata.origin === "USER_DEFINED";
 
-const toAttributes = (siteId: string, policy: Sdk.FirewallPolicy): FirewallPolicyAttributes => ({
-	siteId,
-	firewallPolicyId: policy.id,
-	name: policy.name,
-	sourceFirewallZoneId: policy.source.zoneId,
-	destinationFirewallZoneId: policy.destination.zoneId,
-});
+const toAttributes = (siteId: string, policy: Sdk.FirewallPolicy): FirewallPolicyAttributes => {
+	const { id, metadata: _metadata, index: _index, ...config } = policy;
+	return {
+		siteId,
+		firewallPolicyId: id,
+		name: policy.name,
+		sourceFirewallZoneId: policy.source.zoneId,
+		destinationFirewallZoneId: policy.destination.zoneId,
+		config,
+	};
+};
+
+/** Fields the console reports but rejects in request bodies, or that change without the policy being edited. */
+const READ_ONLY = ["id", "metadata", "index"];
 
 const resolvePortFilter = Effect.fn(function* (filter: PortFilter, site: Site) {
 	if (filter.type === "PORTS") return filter satisfies Sdk.FirewallPolicyPortFilter;
@@ -241,7 +251,6 @@ const toBody = Effect.fn(function* (props: FirewallPolicyProps, site: Site) {
 	const destinationFilter = destination.trafficFilter;
 	return {
 		...rest,
-		description: rest.description ?? "",
 		source: {
 			zoneId: yield* resolveFirewallZone(source.zone, site),
 			...(sourceFilter === undefined ? {} : { trafficFilter: yield* resolveSourceFilter(sourceFilter, site) }),
@@ -254,19 +263,6 @@ const toBody = Effect.fn(function* (props: FirewallPolicyProps, site: Site) {
 		},
 	} satisfies Omit<Sdk.CreateFirewallPolicyRequest, "siteId">;
 });
-
-type Body = Effect.Success<ReturnType<typeof toBody>>;
-
-/** Whether the console's policy is what `body` describes, fields left out of `body` included (they must be absent). */
-const isCurrent = ({ description, ...body }: Body, observed: Sdk.FirewallPolicy) =>
-	matches(body, observed) &&
-	// The console omits a blank description.
-	(observed.description ?? "") === description &&
-	(body.connectionStateFilter !== undefined || observed.connectionStateFilter === undefined) &&
-	(body.ipsecFilter !== undefined || observed.ipsecFilter === undefined) &&
-	(body.schedule !== undefined || observed.schedule === undefined) &&
-	(body.source.trafficFilter !== undefined || observed.source.trafficFilter === undefined) &&
-	(body.destination.trafficFilter !== undefined || observed.destination.trafficFilter === undefined);
 
 const getPolicy = (siteId: string, firewallPolicyId: string) =>
 	withConnection(Sdk.getFirewallPolicy({ siteId, firewallPolicyId })).pipe(
@@ -412,7 +408,7 @@ export const FirewallPolicyProvider = () =>
 								).pipe(write);
 								return toAttributes(site.id, created);
 							}
-							if (isCurrent(body, observed)) return toAttributes(site.id, observed);
+							if (isCurrent(body, omitKeys(observed, READ_ONLY))) return toAttributes(site.id, observed);
 							// A full PUT of the body: optional fields it leaves out are removed.
 							const updated = yield* withConnection(
 								Sdk.updateFirewallPolicy({

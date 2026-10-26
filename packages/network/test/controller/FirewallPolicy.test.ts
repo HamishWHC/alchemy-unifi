@@ -147,7 +147,7 @@ test.provider("puts back a policy changed in the UI on the next update", (stack)
 		const repaired = yield* getPolicy(created.firewallPolicyId);
 		expect(repaired.loggingEnabled).toBe(true);
 		expect(repaired.connectionStateFilter).toBeUndefined();
-		expect(repaired.description ?? "").toBe("");
+		expect(repaired.description).toBeUndefined();
 		expect(
 			(yield* stack.plan(policy(block("Drifted", { loggingEnabled: true })))).resources["policy"]?.action,
 		).toBe("noop");

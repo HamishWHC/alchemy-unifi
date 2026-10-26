@@ -8,6 +8,10 @@ Never test against a real console; see `AGENTS.md`.
     - remote mode is tested against a fake `HttpClient`, since there's no console behind ui.com to use.
 - **Controller tests** (`test/controller/**` in `network` and `network-sdk`) run against the test controller, a disposable UniFi Network Application in Docker that accepts API keys like a real console. `pnpm test` runs both kinds, and starts the controller if it isn't running (24 s from scratch, plus image pulls the first time; 2-3 s when it's already up).
 
+## Limits of the test controller
+
+- **No system-defined firewall policies.** Its fake gateway doesn't make the controller generate the zone matrix (only two derived `Internal` → `Gateway` policies appear), so anything about system policies (network isolation and internet-access flags, mDNS policies, the security posture) has to be checked on a real gateway.
+
 ## Writing controller tests
 
 - **Each file gets its own UniFi site:** `useSite(label)` from `@alchemy-unifi/test-controller/vitest` creates one before the file's tests and deletes it (with everything in it) afterwards. Parallel worktrees share one controller, and UniFi rejects duplicate names and VLAN IDs, so tests must never use the `default` site.

@@ -73,7 +73,7 @@ test.provider("creates a broadcast on a network from the same stack, then plans 
 	}),
 );
 
-test.provider("puts back a passphrase changed in the UI on the next update", (stack) =>
+test.provider("puts back UI changes on the next update, passphrases and unset fields included", (stack) =>
 	Effect.gen(function* () {
 		const created = (yield* stack.deploy(wifi(standard("Drift", "first-passphrase")))).wifi;
 		const live = yield* getBroadcast(created.wifiBroadcastId);
@@ -85,6 +85,8 @@ test.provider("puts back a passphrase changed in the UI on the next update", (st
 				wifiBroadcastId: created.wifiBroadcastId,
 				body: {
 					...body,
+					// Props leave band steering unset, so its default (off) applies.
+					bandSteeringEnabled: true,
 					securityConfiguration: {
 						type: "WPA2_PERSONAL",
 						passphrase: "changed-in-the-ui",
@@ -93,10 +95,14 @@ test.provider("puts back a passphrase changed in the UI on the next update", (st
 				},
 			}),
 		);
-		yield* stack.deploy(wifi({ ...standard("Drift", "first-passphrase"), hideName: true }));
+		// What `alchemy drift` compares: the attributes `read` builds now differ from the deployed ones.
+		expect((yield* UnifiNetwork.WifiBroadcast.lookup({ name: "Drift" })).config).not.toEqual(created.config);
+
+		const deployed = (yield* stack.deploy(wifi({ ...standard("Drift", "first-passphrase"), hideName: true }))).wifi;
 		const repaired = yield* getBroadcast(created.wifiBroadcastId);
 		expect(passphraseOf(repaired)).toBe("first-passphrase");
-		expect(repaired.hideName).toBe(true);
+		expect(repaired).toMatchObject({ hideName: true, bandSteeringEnabled: false });
+		expect((yield* UnifiNetwork.WifiBroadcast.lookup({ name: "Drift" })).config).toEqual(deployed.config);
 	}),
 );
 

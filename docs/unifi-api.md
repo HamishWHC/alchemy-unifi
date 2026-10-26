@@ -49,7 +49,9 @@ Verified on 10.6.109 (the test controller):
     - networks are keyed by an immutable UUID `id`; name and VLAN ID are ordinary fields, and changing the VLAN ID updates the network in place;
     - VLAN IDs must be unique per site (names needn't be); the default network's must be 1, and any other network's greater than 1;
     - deleting a network that a Wi-Fi broadcast uses fails unless `cascade=true`;
-    - just after deleting a network, listing networks or deleting its former zone can fail with 422 "Configured network does not exist" for a moment.
+    - while networks are created or deleted, requests can fail with 422 "Configured network does not exist" for a moment, on any endpoint and any site of the console (networks, zones and policies seen under parallel tests). `withConnection` retries exactly that message;
+    - a `PUT` removes optional fields it leaves out (DHCP guarding, DHCP server), except `mdnsForwardingEnabled`, which keeps its value;
+    - unset on create, `mdnsForwardingEnabled` is `true` and a DHCP server's `domainName` is `""`.
 - **Zones:**
     - updates must include `networkIds` and replace the member list: networks left out move to `Internal`;
     - a zone's `networkIds` lags a network joining it (by about 300 ms); the network's `zoneId` is current at once;
@@ -59,7 +61,11 @@ Verified on 10.6.109 (the test controller):
     - a standard broadcast with WPA security requires `securityConfiguration.fastRoamingEnabled` ("WPA security combined with standard WiFi requires fast roaming setting"); the spec marks it optional;
     - `broadcastingFrequenciesGHz` takes numbers (`[2.4, 5]`), not strings;
     - `network: { type: "NATIVE" }` is the default network, which can't be referenced as `SPECIFIC` by ID;
-    - WPA2 personal needs either preshared keys or both a network and a passphrase.
+    - WPA2 personal needs either preshared keys or both a network and a passphrase; open security and WPA2/WPA3 personal need a network; `mloEnabled` is rejected, even as `false`, unless the broadcast is WPA3 on several bands;
+    - a `PUT` resets every optional field it leaves out (band steering, handoff thresholds, rekey interval, PMF mode); unset on create, `bandSteeringEnabled` is `false`;
+    - `broadcastingFrequenciesGHz` order isn't kept: real consoles return their own order (e.g. `[5, 6, 2.4]` after sending `[2.4, 5, 6]`), the test controller sorts;
+    - basic data rates (`basicDataRateKbpsByFrequencyGHz`) must be numbers; the spec types them as string enums, fixed by a patch (`patches/wifi-basic-data-rates.json`);
+    - validation messages name fields by their Java names, not their JSON names (e.g. `band6GHzDtimPeriod` for the DTIM override's `"6"`).
 - **Passphrases are readable.** `GET` on a Wi-Fi broadcast returns the passphrase in `securityConfiguration.passphrase`.
 - **Server defaults.** Responses include fields the request didn't set (e.g. `mdnsForwardingEnabled: true`, `dhcpConfiguration.domainName: ""`).
 - **Firewall policies:**
@@ -69,8 +75,14 @@ Verified on 10.6.109 (the test controller):
     - derived policies (`metadata.origin: "DERIVED"`) can't be updated or deleted ("Deletion of derived firewall policy is not allowed"), aren't in orderings, and fresh sites already have some (`Internal` → `Gateway`, no name);
     - a `NETWORK` traffic filter naming an unmanaged network fails with a bare 500 ("Unexpected error"), in the source or the destination, rather than a validation error: the gateway doesn't route that network, so can't filter it;
     - a destination `NETWORK` filter towards `External` is rejected properly (400 "Destination traffic filter not compatible with the zone");
-    - a blank `description` is omitted from responses.
+    - a `PUT` without `description` removes it; `""` is stored as `""`.
 - **Policy ordering.** `GET /firewall/policies/ordering?sourceFirewallZoneId=…&destinationFirewallZoneId=…` returns `{ orderedFirewallPolicyIds: { beforeSystemDefined: [...], afterSystemDefined: [...] } }`. New policies land at the end of `beforeSystemDefined`. A `PUT` must list every user-defined policy in the pair ("Not all firewall policies specified for the given firewall zone combination"); policies can move between the two buckets.
+- **Network flags and system policies** (verified on a UniFi Express 7; test-controller sites have no system-defined policies, so this can't be tested there):
+    - `isolationEnabled: true` adds system-defined "Isolated Networks" BLOCK policies from the network's subnet to every internal zone (its own included), not to `Gateway` or `External`;
+    - `internetAccessEnabled: false` adds a system-defined "Block <subnet> Internet Access" policy to `External`;
+    - per-network `mdnsForwardingEnabled` (legacy `mdns_enabled`) is what the UI shows as the Gateway mDNS Proxy mode, and it gates the system "Allow mDNS" policies to `Gateway`.
+- **Default security posture** (legacy setting `global_network.default_security_posture`, `ALLOW_ALL` / `BLOCK_ALL`) only sets UI defaults for networks, port profiles and devices created later; changing it leaves existing policies and networks as they are (verified). Writing it through the legacy API with an API key fails with `api.err.Invalid`; the UI saves it in one form with the mDNS proxy setting.
+- **The legacy API accepts Integration API keys** (`X-API-KEY`) for reads, locally and through the ui.com connector (verified on both consoles).
 - **Traffic-matching lists:** names are unique (422 on a duplicate); `PUT` can change `type`; deleting one an enabled policy references fails with 422 "Selected traffic matching list is referenced by other resources", but deleting one only disabled policies reference succeeds and leaves them with a dangling filter (no `trafficMatchingListId`), which then can't be re-enabled ("Traffic Matching List with id=… does not exist").
 - **DNS policies:** several records of one type may share a domain (e.g. two A records), but a CNAME whose alias overlaps another is rejected; `PUT` can change `type`.
 - **Lists.** Pagination is `offset`/`limit` (max 200) with `{ offset, limit, count, totalCount, data }`. Filters use `filter=name.eq('x')`-style expressions; filterable fields are listed per operation in the spec.

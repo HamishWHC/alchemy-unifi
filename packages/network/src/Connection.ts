@@ -3,6 +3,8 @@ import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as HttpClient from "effect/http/HttpClient";
 import * as Layer from "effect/Layer";
+import * as Predicate from "effect/Predicate";
+import * as Schedule from "effect/Schedule";
 import * as RateLimiter from "effect/persistence/RateLimiter";
 import * as Scope from "effect/Scope";
 import { type Connection, UnifiNetworkCredentials } from "./Credentials.ts";
@@ -150,7 +152,21 @@ export const layer = Layer.effect(
 	}),
 );
 
-/** Runs SDK operations against the profile's console. */
+/**
+ * The 422 "Configured network does not exist" the console answers requests
+ * with, on any endpoint, for a moment while networks are created or deleted
+ * anywhere on it (seen on the test controller under parallel tests, for
+ * network, zone and policy requests alike). It's never a real error, so it's
+ * retried; other 422s are.
+ */
+const isStaleNetworkState = (error: unknown) =>
+	Predicate.hasProperty(error, "_tag") &&
+	error._tag === "UnprocessableEntity" &&
+	Predicate.hasProperty(error, "message") &&
+	typeof error.message === "string" &&
+	error.message.includes("Configured network does not exist");
+
+/** Runs SDK operations against the profile's console, retrying the console's transient stale-network 422. */
 export const withConnection = <A, E, R>(
 	effect: Effect.Effect<A, E, R>,
 ): Effect.Effect<
@@ -160,5 +176,10 @@ export const withConnection = <A, E, R>(
 > =>
 	Effect.gen(function* () {
 		const { services } = yield* yield* UnifiNetworkConnection;
-		return yield* Effect.provide(effect, services);
+		return yield* Effect.provide(effect, services).pipe(
+			Effect.retry({
+				while: isStaleNetworkState,
+				schedule: Schedule.spaced("500 millis").pipe(Schedule.upTo({ times: 10 })),
+			}),
+		);
 	});

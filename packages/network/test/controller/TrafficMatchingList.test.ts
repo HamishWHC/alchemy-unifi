@@ -99,3 +99,23 @@ test.provider("explains a delete blocked by a policy outside the stack", (stack)
 		yield* sdk(Sdk.deleteFirewallPolicy({ siteId, firewallPolicyId: fromUi.id }));
 	}),
 );
+
+test.provider("puts back items changed in the UI on the next update", (stack) =>
+	Effect.gen(function* () {
+		const siteId = current().site.id;
+		const created = (yield* stack.deploy(list(hosts("Drifting")))).list;
+		yield* sdk(
+			Sdk.updateTrafficMatchingList({
+				siteId,
+				trafficMatchingListId: created.trafficMatchingListId,
+				body: { type: "IPV4_ADDRESSES", name: "Drifting", items: [{ type: "IP_ADDRESS", value: "10.0.0.1" }] },
+			}),
+		);
+		// What `alchemy drift` compares: the attributes `read` builds now differ from the deployed ones.
+		expect((yield* UnifiNetwork.TrafficMatchingList.lookup({ name: "Drifting" })).config).not.toEqual(
+			created.config,
+		);
+		const repaired = (yield* stack.deploy(list(hosts("Drifted")))).list;
+		expect(repaired.config).toEqual({ ...hosts("Drifted") });
+	}),
+);

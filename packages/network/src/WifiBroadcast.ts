@@ -6,7 +6,7 @@ import { Resource } from "alchemy/Resource";
 import * as Effect from "effect/Effect";
 import * as Stream from "effect/Stream";
 import { withConnection } from "./Connection.ts";
-import { matches, mergeOver, omitKeys } from "./internal/Fields.ts";
+import { type DistributiveOmit, isCurrent, omitKeys } from "./internal/Fields.ts";
 import { planned, plannedString, UNKNOWN } from "./internal/Plan.ts";
 import { captureServices } from "./internal/Services.ts";
 import { describeQuery, LookupAmbiguous, LookupNotFound } from "./Lookup.ts";
@@ -61,6 +61,8 @@ export interface WifiBroadcastAttributes {
 	type: WifiBroadcastProps["type"];
 	/** The network clients join, when it isn't the native one. */
 	networkId: string | undefined;
+	/** The whole broadcast as the console reports it (passphrases `Redacted`), so `alchemy drift` sees any change. */
+	config: DistributiveOmit<Sdk.WifiBroadcastDetails, "id" | "metadata">;
 }
 
 export interface WifiBroadcast extends Resource<
@@ -81,16 +83,36 @@ const broadcastsKey = ReadCache.key<
 /** A site's Wi-Fi broadcasts, listed once per run. */
 export const listWifiBroadcasts = (siteId: string) => ReadCache.cached(broadcastsKey, siteId, loadBroadcasts(siteId));
 
-const toAttributes = (
-	siteId: string,
-	broadcast: Sdk.WifiBroadcastOverview | Sdk.WifiBroadcastDetails,
-): WifiBroadcastAttributes => ({
-	siteId,
-	wifiBroadcastId: broadcast.id,
-	name: broadcast.name,
-	type: broadcast.type,
-	networkId: broadcast.network?.type === "SPECIFIC" ? broadcast.network.networkId : undefined,
-});
+const toAttributes = (siteId: string, broadcast: Sdk.WifiBroadcastDetails): WifiBroadcastAttributes => {
+	const { id, metadata: _metadata, ...config } = broadcast;
+	return {
+		siteId,
+		wifiBroadcastId: id,
+		name: broadcast.name,
+		type: broadcast.type,
+		networkId: broadcast.network?.type === "SPECIFIC" ? broadcast.network.networkId : undefined,
+		config,
+	};
+};
+
+const byFrequency = (bands: ReadonlyArray<number>) => bands.toSorted((a, b) => a - b);
+
+/**
+ * `body` with its bands sorted (their order means nothing; see
+ * {@link comparable}), and an explicit value for the one unset field that
+ * can't simply be left out (verified): a standard broadcast's
+ * `bandSteeringEnabled`, which the console reports as `false` when unset,
+ * so without the default the body would never match and every deploy would
+ * update it (and drift would report it) forever.
+ */
+const withDefaults = (body: Sdk.WifiBroadcastCreateOrUpdate): Sdk.WifiBroadcastCreateOrUpdate =>
+	body.type === "STANDARD"
+		? {
+				...body,
+				bandSteeringEnabled: body.bandSteeringEnabled ?? false,
+				broadcastingFrequenciesGHz: byFrequency(body.broadcastingFrequenciesGHz),
+			}
+		: body;
 
 /** Fields the console reports but rejects in request bodies. */
 const READ_ONLY = ["id", "metadata"];
@@ -106,9 +128,27 @@ const toBody = Effect.fn(function* (props: WifiBroadcastProps, site: Site) {
 	return { ...rest, network: { type: "SPECIFIC", networkId } } satisfies Sdk.WifiBroadcastCreateOrUpdate;
 });
 
+/**
+ * The console's broadcast in body form, with its bands sorted: consoles keep
+ * them in an order of their own (not the one sent; the test controller
+ * sorts them), so order mustn't count as a difference.
+ */
+const comparable = (observed: Sdk.WifiBroadcastDetails) => {
+	const body = omitKeys(observed, READ_ONLY);
+	return observed.type === "STANDARD"
+		? { ...body, broadcastingFrequenciesGHz: byFrequency(observed.broadcastingFrequenciesGHz) }
+		: body;
+};
+
 const getBroadcast = (siteId: string, wifiBroadcastId: string) =>
 	withConnection(Sdk.getWifiBroadcastDetails({ siteId, wifiBroadcastId })).pipe(
 		Effect.catchTag("NotFound", () => Effect.undefined),
+	);
+
+/** The attributes of a broadcast known to exist (e.g. from a list). */
+const attributesOf = (siteId: string, wifiBroadcastId: string) =>
+	withConnection(Sdk.getWifiBroadcastDetails({ siteId, wifiBroadcastId })).pipe(
+		Effect.map((broadcast) => toAttributes(siteId, broadcast)),
 	);
 
 const NATIVE_NETWORK: NativeNetwork = { type: "NATIVE" };
@@ -117,9 +157,11 @@ const NATIVE_NETWORK: NativeNetwork = { type: "NATIVE" };
  * A Wi-Fi network (SSID). `type` picks a standard or an IoT-optimised
  * broadcast; changing it, or the site, replaces the broadcast.
  *
- * Only the fields set in props are compared and updated. Passphrases are
- * readable through the API, so a passphrase changed in the UI is put back
- * on the next update. Existing broadcasts are adopted by name with
+ * Props are authoritative: every update sends the whole broadcast, with
+ * explicit defaults for unset fields (a standard broadcast's
+ * `bandSteeringEnabled: false`), so changes made in the UI, passphrases
+ * included, are put back. The `config` attribute mirrors the console's
+ * object, so `alchemy drift` sees them. Existing broadcasts are adopted by name with
  * `--adopt`.
  *
  * @example
@@ -159,7 +201,7 @@ export const WifiBroadcast = Resource<WifiBroadcast>("UnifiNetwork.WifiBroadcast
 				count: broadcasts.length,
 			});
 		}
-		return toAttributes(site.id, broadcast);
+		return yield* attributesOf(site.id, broadcast.id);
 	}, Effect.orDie),
 });
 
@@ -175,9 +217,10 @@ export const WifiBroadcastProvider = () =>
 						Effect.gen(function* () {
 							const site = yield* resolveSite();
 							const broadcasts = yield* listWifiBroadcasts(site.id);
-							return broadcasts
-								.filter((b) => b.metadata.origin === "USER_DEFINED")
-								.map((b) => toAttributes(site.id, b));
+							return yield* Effect.forEach(
+								broadcasts.filter((b) => b.metadata.origin === "USER_DEFINED"),
+								(b) => attributesOf(site.id, b.id),
+							);
 						}),
 					),
 
@@ -193,7 +236,7 @@ export const WifiBroadcastProvider = () =>
 							const [broadcast] = matching;
 							return broadcast === undefined || matching.length > 1
 								? undefined
-								: Unowned(toAttributes(site.id, broadcast));
+								: Unowned(yield* attributesOf(site.id, broadcast.id));
 						}),
 					),
 
@@ -215,7 +258,7 @@ export const WifiBroadcastProvider = () =>
 					run(
 						Effect.gen(function* () {
 							const site = yield* resolveSite(news.site);
-							const body = yield* toBody(news, site);
+							const body = withDefaults(yield* toBody(news, site));
 							const observed =
 								output !== undefined && output.siteId === site.id
 									? yield* getBroadcast(site.id, output.wifiBroadcastId)
@@ -225,17 +268,13 @@ export const WifiBroadcastProvider = () =>
 								const created = yield* withConnection(
 									Sdk.createWifiBroadcast({ siteId: site.id, body }),
 								).pipe(write);
-								return toAttributes(site.id, created);
+								return yield* attributesOf(site.id, created.id);
 							}
-							if (matches(body, observed)) return toAttributes(site.id, observed);
-							const updated = yield* withConnection(
-								Sdk.updateWifiBroadcast({
-									siteId: site.id,
-									wifiBroadcastId: observed.id,
-									body: mergeOver(body, omitKeys(observed, READ_ONLY)),
-								}),
+							if (isCurrent(body, comparable(observed))) return toAttributes(site.id, observed);
+							yield* withConnection(
+								Sdk.updateWifiBroadcast({ siteId: site.id, wifiBroadcastId: observed.id, body }),
 							).pipe(write);
-							return toAttributes(site.id, updated);
+							return yield* attributesOf(site.id, observed.id);
 						}),
 					),
 

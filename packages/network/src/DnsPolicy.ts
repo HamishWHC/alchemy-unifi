@@ -6,7 +6,7 @@ import { Resource } from "alchemy/Resource";
 import * as Effect from "effect/Effect";
 import * as Stream from "effect/Stream";
 import { withConnection } from "./Connection.ts";
-import { matches, mergeOver, omitKeys } from "./internal/Fields.ts";
+import { type DistributiveOmit, isCurrent, omitKeys } from "./internal/Fields.ts";
 import { plannedString, UNKNOWN } from "./internal/Plan.ts";
 import { captureServices } from "./internal/Services.ts";
 import type { Providers } from "./Providers.ts";
@@ -29,6 +29,8 @@ export interface DnsPolicyAttributes {
 	dnsPolicyId: string;
 	type: DnsPolicyProps["type"];
 	domain: string;
+	/** The whole policy as the console reports it, so `alchemy drift` sees any change. */
+	config: DistributiveOmit<Sdk.DNSPolicy, "id" | "metadata">;
 }
 
 export interface DnsPolicy extends Resource<
@@ -47,12 +49,10 @@ const policiesKey = ReadCache.key<ReadonlyArray<Sdk.DNSPolicy>, Effect.Error<Ret
 /** A site's DNS policies, listed once per run. */
 export const listDnsPolicies = (siteId: string) => ReadCache.cached(policiesKey, siteId, loadPolicies(siteId));
 
-const toAttributes = (siteId: string, policy: Sdk.DNSPolicy): DnsPolicyAttributes => ({
-	siteId,
-	dnsPolicyId: policy.id,
-	type: policy.type,
-	domain: policy.domain,
-});
+const toAttributes = (siteId: string, policy: Sdk.DNSPolicy): DnsPolicyAttributes => {
+	const { id, metadata: _metadata, ...config } = policy;
+	return { siteId, dnsPolicyId: id, type: policy.type, domain: policy.domain, config };
+};
 
 /** Fields the console reports but rejects in request bodies. */
 const READ_ONLY = ["id", "metadata"];
@@ -67,7 +67,7 @@ const getPolicy = (siteId: string, dnsPolicyId: string) =>
  */
 const findExisting = (policies: ReadonlyArray<Sdk.DNSPolicy>, body: Sdk.CreateOrUpdateDNSPolicy) => {
 	const sameName = policies.filter((p) => p.type === body.type && p.domain === body.domain);
-	const candidates = sameName.length > 1 ? sameName.filter((p) => matches(body, p)) : sameName;
+	const candidates = sameName.length > 1 ? sameName.filter((p) => isCurrent(body, omitKeys(p, READ_ONLY))) : sameName;
 	const [policy] = candidates;
 	return candidates.length === 1 ? policy : undefined;
 };
@@ -147,13 +147,9 @@ export const DnsPolicyProvider = () =>
 								).pipe(write);
 								return toAttributes(site.id, created);
 							}
-							if (matches(body, observed)) return toAttributes(site.id, observed);
+							if (isCurrent(body, omitKeys(observed, READ_ONLY))) return toAttributes(site.id, observed);
 							const updated = yield* withConnection(
-								Sdk.updateDnsPolicy({
-									siteId: site.id,
-									dnsPolicyId: observed.id,
-									body: mergeOver(body, omitKeys(observed, READ_ONLY)),
-								}),
+								Sdk.updateDnsPolicy({ siteId: site.id, dnsPolicyId: observed.id, body }),
 							).pipe(write);
 							return toAttributes(site.id, updated);
 						}),

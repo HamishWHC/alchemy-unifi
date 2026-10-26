@@ -6,7 +6,7 @@ import { Resource } from "alchemy/Resource";
 import * as Effect from "effect/Effect";
 import * as Stream from "effect/Stream";
 import { withConnection } from "./Connection.ts";
-import { loadNetworks, retryAfterNetworkDelete } from "./internal/Networks.ts";
+import { loadNetworks } from "./internal/Networks.ts";
 import { plannedString, UNKNOWN } from "./internal/Plan.ts";
 import { captureServices } from "./internal/Services.ts";
 import { describeQuery, LookupNotFound } from "./Lookup.ts";
@@ -217,8 +217,6 @@ export const FirewallZoneProvider = () =>
 						withConnection(
 							Sdk.deleteFirewallZone({ siteId: output.siteId, firewallZoneId: output.firewallZoneId }),
 						).pipe(
-							// Fails for a moment after the zone's networks are deleted.
-							retryAfterNetworkDelete,
 							Effect.asVoid,
 							Effect.catchTag("NotFound", () => Effect.void),
 							ReadCache.invalidating(zonesKey, output.siteId),
