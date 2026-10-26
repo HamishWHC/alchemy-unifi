@@ -22,6 +22,7 @@
 | `delete`    | 404 is success, as Alchemy requires. The site's default network is never deleted.                                                                                                                                                                                   |
 | `list`      | User-defined objects in the profile's site, for `alchemy nuke`.                                                                                                                                                                                                     |
 
+- **Adoption of a resource whose props reference another resource adopted in the same run is deferred**: Alchemy can't probe while props hold unresolved outputs, so `plan --adopt` shows it as `create`, and the deploy runs `read` just before creating and adopts the match instead. Verified against the test controller and both live consoles.
 - **A deploy with unchanged props is a no-op**, so drift in the console is repaired by the next deploy that changes the resource, or by `alchemy drift`.
 - **Reads go through the read cache** (one list per type per site per run); writes invalidate it.
 

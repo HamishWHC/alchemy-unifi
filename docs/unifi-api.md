@@ -49,7 +49,7 @@ Verified on 10.6.109 (the test controller):
     - networks are keyed by an immutable UUID `id`; name and VLAN ID are ordinary fields, and changing the VLAN ID updates the network in place;
     - VLAN IDs must be unique per site (names needn't be); the default network's must be 1, and any other network's greater than 1;
     - deleting a network that a Wi-Fi broadcast uses fails unless `cascade=true`;
-    - listing networks just after deleting one can fail with 422 "Configured network does not exist" for a moment.
+    - just after deleting a network, listing networks or deleting its former zone can fail with 422 "Configured network does not exist" for a moment.
 - **Zones:**
     - updates must include `networkIds` and replace the member list: networks left out move to `Internal`;
     - a zone's `networkIds` lags a network joining it (by about 300 ms); the network's `zoneId` is current at once;

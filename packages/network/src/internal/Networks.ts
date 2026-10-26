@@ -5,14 +5,18 @@ import * as Stream from "effect/Stream";
 import { withConnection } from "../Connection.ts";
 
 /**
- * A site's networks, uncached. Listing them just after one is deleted can
- * fail with 422 "Configured network does not exist" for a moment (seen on
- * the test controller under load), so that's retried briefly.
+ * Retries the 422 "Configured network does not exist" that some requests
+ * (listing networks, deleting a zone) fail with for a moment after a network
+ * is deleted.
  */
-export const loadNetworks = (siteId: string) =>
-	withConnection(Stream.runCollect(Sdk.getNetworksOverviewPage.items({ siteId }))).pipe(
+export const retryAfterNetworkDelete = <A, E extends { readonly _tag: string }, R>(effect: Effect.Effect<A, E, R>) =>
+	effect.pipe(
 		Effect.retry({
 			while: (error) => error._tag === "UnprocessableEntity",
 			schedule: Schedule.spaced("500 millis").pipe(Schedule.upTo({ times: 10 })),
 		}),
 	);
+
+/** A site's networks, uncached. */
+export const loadNetworks = (siteId: string) =>
+	retryAfterNetworkDelete(withConnection(Stream.runCollect(Sdk.getNetworksOverviewPage.items({ siteId }))));
