@@ -62,7 +62,17 @@ Verified on 10.6.109 (the test controller):
     - WPA2 personal needs either preshared keys or both a network and a passphrase.
 - **Passphrases are readable.** `GET` on a Wi-Fi broadcast returns the passphrase in `securityConfiguration.passphrase`.
 - **Server defaults.** Responses include fields the request didn't set (e.g. `mdnsForwardingEnabled: true`, `dhcpConfiguration.domainName: ""`).
-- **Policy ordering.** `GET /firewall/policies/ordering?sourceFirewallZoneId=…&destinationFirewallZoneId=…` returns `{ orderedFirewallPolicyIds: { beforeSystemDefined: [...], afterSystemDefined: [...] } }`. New policies land at the end of `beforeSystemDefined`.
+- **Firewall policies:**
+    - names aren't unique, even within a zone pair;
+    - `PUT` can change a policy's zones; it moves to the end of the new pair's `beforeSystemDefined`;
+    - `PATCH` only takes `loggingEnabled`;
+    - derived policies (`metadata.origin: "DERIVED"`) can't be updated or deleted ("Deletion of derived firewall policy is not allowed"), aren't in orderings, and fresh sites already have some (`Internal` → `Gateway`, no name);
+    - a `NETWORK` traffic filter naming an unmanaged network fails with a bare 500 ("Unexpected error"), in the source or the destination, rather than a validation error: the gateway doesn't route that network, so can't filter it;
+    - a destination `NETWORK` filter towards `External` is rejected properly (400 "Destination traffic filter not compatible with the zone");
+    - a blank `description` is omitted from responses.
+- **Policy ordering.** `GET /firewall/policies/ordering?sourceFirewallZoneId=…&destinationFirewallZoneId=…` returns `{ orderedFirewallPolicyIds: { beforeSystemDefined: [...], afterSystemDefined: [...] } }`. New policies land at the end of `beforeSystemDefined`. A `PUT` must list every user-defined policy in the pair ("Not all firewall policies specified for the given firewall zone combination"); policies can move between the two buckets.
+- **Traffic-matching lists:** names are unique (422 on a duplicate); `PUT` can change `type`; deleting one an enabled policy references fails with 422 "Selected traffic matching list is referenced by other resources", but deleting one only disabled policies reference succeeds and leaves them with a dangling filter (no `trafficMatchingListId`), which then can't be re-enabled ("Traffic Matching List with id=… does not exist").
+- **DNS policies:** several records of one type may share a domain (e.g. two A records), but a CNAME whose alias overlaps another is rejected; `PUT` can change `type`.
 - **Lists.** Pagination is `offset`/`limit` (max 200) with `{ offset, limit, count, totalCount, data }`. Filters use `filter=name.eq('x')`-style expressions; filterable fields are listed per operation in the spec.
 - **Missing objects** return 404 (`NotFound` in the SDK). So does any request under a site ID the console doesn't have, reads and deletes alike (`api.resource-not-found`).
 - **Sites:**
