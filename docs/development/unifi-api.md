@@ -63,7 +63,7 @@ Verified on 10.6.109 (the test controller):
     - `network: { type: "NATIVE" }` is the default network, which can't be referenced as `SPECIFIC` by ID;
     - WPA2 personal needs either preshared keys or both a network and a passphrase; open security and WPA2/WPA3 personal need a network; `mloEnabled` is rejected, even as `false`, unless the broadcast is WPA3 on several bands;
     - a `PUT` resets every optional field it leaves out (band steering, handoff thresholds, rekey interval, PMF mode); unset on create, `bandSteeringEnabled` is `false`;
-    - `broadcastingFrequenciesGHz` order isn't kept: real consoles return their own order (e.g. `[5, 6, 2.4]` after sending `[2.4, 5, 6]`), the test controller sorts;
+    - `broadcastingFrequenciesGHz` order isn't kept: real consoles return their own order (e.g. `[5, 6, 2.4]` after sending `[2.4, 5, 6]`), and the test controller usually sorts but not always;
     - basic data rates (`basicDataRateKbpsByFrequencyGHz`) must be numbers; the spec types them as string enums, fixed by a patch (`patches/wifi-basic-data-rates.json`);
     - validation messages name fields by their Java names, not their JSON names (e.g. `band6GHzDtimPeriod` for the DTIM override's `"6"`).
 - **Passphrases are readable.** `GET` on a Wi-Fi broadcast returns the passphrase in `securityConfiguration.passphrase`.
