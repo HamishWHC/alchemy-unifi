@@ -44,7 +44,7 @@ jobs:
   controller:
     name: tests against the test controller
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -68,6 +68,9 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+      - name: Consumer smoke test (packed packages in a fresh npm project)
+        run: pnpm build && scripts/smoke/run.sh
 
       - name: Controller logs
         if: failure()

@@ -1,6 +1,6 @@
 {
 	"name": "@alchemy-unifi/network-sdk",
-	"version": "0.0.0",
+	"version": "0.0.1",
 	"description": "Effect SDK for the UniFi Network Integration API, generated with distilled.",
 	"keywords": [
 		"distilled",
@@ -8,7 +8,12 @@
 		"ubiquiti",
 		"unifi"
 	],
+	"homepage": "https://github.com/HamishWHC/alchemy-unifi/tree/main/packages/network-sdk#readme",
+	"bugs": {
+		"url": "https://github.com/HamishWHC/alchemy-unifi/issues"
+	},
 	"license": "MIT",
+	"author": "HamishWHC",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/HamishWHC/alchemy-unifi.git",
@@ -95,6 +100,9 @@
 	},
 	"peerDependencies": {
 		"effect": "^4.0.6"
+	},
+	"engines": {
+		"node": ">=22"
 	},
 	"distilled": {
 		"generatedAt": "2026-10-26"

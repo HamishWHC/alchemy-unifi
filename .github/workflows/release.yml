@@ -1,0 +1,103 @@
+# Publishes to npm with trusted publishing (OIDC, no tokens) and provenance.
+# npm trusts this file by name, so both kinds of release live here.
+# See docs/releasing.md.
+name: Release
+
+on:
+  # Every push to main: a nightly of the next version, under the `nightly` dist-tag.
+  push:
+    branches: [main]
+  # By hand: apply the pending change intents, publish under `latest`, commit, tag and create GitHub releases.
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  nightly:
+    name: Nightly
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - name: Update npm (trusted publishing needs 11.5.1 or later)
+        run: npm install --global npm@latest
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Set nightly versions
+        run: node scripts/release.ts nightly
+      - name: Publish
+        run: node scripts/release.ts publish nightly
+
+  release:
+    name: Release
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - name: Update npm (trusted publishing needs 11.5.1 or later)
+        run: npm install --global npm@latest
+      - run: pnpm install --frozen-lockfile
+
+      - name: Apply change intents
+        run: |
+          if ! pnpm change status | grep -q '^Release plan:'; then
+            echo "::error::No pending change intents. Record one with \`pnpm change\` first."
+            exit 1
+          fi
+          pnpm change status
+          pnpm version -r
+
+      - run: pnpm build
+      # Publish before pushing: a failed publish leaves main untouched, and a re-run skips versions already on npm.
+      - name: Publish
+        run: node scripts/release.ts publish latest
+
+      - name: Commit and tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          node scripts/release.ts notes > "$RUNNER_TEMP/releases.json"
+          tags=$(node -e 'for (const r of JSON.parse(require("fs").readFileSync(process.argv[1]))) console.log(r.tag)' "$RUNNER_TEMP/releases.json")
+          git add -A
+          git commit -m "Release $(echo $tags | sed 's/ /, /g')"
+          for tag in $tags; do git tag "$tag"; done
+          # main may have moved while this ran; the release commit only touches manifests, changelogs and intents.
+          git pull --rebase origin main
+          git push origin HEAD:main $tags
+
+      - name: Create GitHub releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          releases="$RUNNER_TEMP/releases.json"
+          node -e 'for (const r of JSON.parse(require("fs").readFileSync(process.argv[1]))) console.log(r.tag)' "$releases" | while read -r tag; do
+            if gh release view "$tag" >/dev/null 2>&1; then continue; fi
+            node -e 'const r = JSON.parse(require("fs").readFileSync(process.argv[1])).find((r) => r.tag === process.argv[2]); process.stdout.write(r.body)' "$releases" "$tag" > "$RUNNER_TEMP/notes.md"
+            gh release create "$tag" --title "$tag" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
+          done

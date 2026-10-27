@@ -1,6 +1,6 @@
 {
 	"name": "@alchemy-unifi/network",
-	"version": "0.0.0",
+	"version": "0.0.1",
 	"description": "Alchemy provider for the UniFi Network application.",
 	"keywords": [
 		"alchemy",
@@ -9,7 +9,12 @@
 		"ubiquiti",
 		"unifi"
 	],
+	"homepage": "https://github.com/HamishWHC/alchemy-unifi/tree/main/packages/network#readme",
+	"bugs": {
+		"url": "https://github.com/HamishWHC/alchemy-unifi/issues"
+	},
 	"license": "MIT",
+	"author": "HamishWHC",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/HamishWHC/alchemy-unifi.git",
@@ -62,5 +67,8 @@
 		"@effect/platform-node": "^4.0.6",
 		"alchemy": "^2.0.0-beta.84",
 		"effect": "^4.0.6"
+	},
+	"engines": {
+		"node": ">=22"
 	}
 }
