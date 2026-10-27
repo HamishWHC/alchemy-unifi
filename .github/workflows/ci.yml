@@ -10,21 +10,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
-    name: typecheck / lint / fmt / unit tests / build
+  ci:
+    name: check / test / build / smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
         with:
           version: 12
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
           cache: pnpm
@@ -32,47 +32,38 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Check
+      - name: Check (typecheck, lint, format)
         run: pnpm check
 
       - name: Unit tests
-        run: pnpm turbo run test:unit
+        run: pnpm test:unit
 
       - name: Build
         run: pnpm build
 
-  controller:
-    name: tests against the test controller
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 12
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
       - name: Start the test controller
         run: pnpm --filter @alchemy-unifi/test-controller run up
 
-      - name: Test
-        run: pnpm test
+      - name: Controller tests
+        run: pnpm test:controller
 
       - name: Consumer smoke test (packed packages in a fresh npm project)
-        run: pnpm build && scripts/smoke/run.sh
+        run: scripts/smoke/run.sh
 
       - name: Controller logs
         if: failure()
         working-directory: packages/test-controller
         run: docker compose logs --no-color --tail 300
+
+  # Once CI passes on main, a nightly of each package's next version under the `nightly`
+  # dist-tag (release.yml does the publishing; see docs/development/releasing.md).
+  nightly:
+    name: publish
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+      id-token: write
+    uses: ./.github/workflows/release.yml
+    with:
+      nightly: true

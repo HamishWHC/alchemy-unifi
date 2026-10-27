@@ -2,7 +2,7 @@
 
 Never test against a real console; see `AGENTS.md`.
 
-- **Unit tests** (`pnpm turbo run test:unit`, or `pnpm run test:unit` in a package) need nothing running:
+- **Unit tests** (`pnpm test:unit`, at the root or in a package) need nothing running:
     - `packages/network/test/helpers/fake-console.ts` serves `/v1/info` and `/v1/sites` over http or https on a random port. Its certificates (a CA and a `localhost` leaf) are generated with `openssl` at test time, so no keys are committed. Keys are RSA with SHA-256 signatures, because LibreSSL's defaults (SHA-1, explicit EC parameters) are rejected by Node;
     - `helpers/scripted-interaction.ts` answers `configure` prompts by message prefix;
     - remote mode is tested against a fake `HttpClient`, since there's no console behind ui.com to use.

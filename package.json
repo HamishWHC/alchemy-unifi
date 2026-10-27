@@ -10,6 +10,8 @@
 		"check": "turbo run check",
 		"typecheck": "turbo run typecheck",
 		"test": "turbo run test",
+		"test:unit": "turbo run test:unit",
+		"test:controller": "turbo run test:controller",
 		"generate": "turbo run generate",
 		"lint": "oxlint",
 		"lint:fix": "oxlint --fix",

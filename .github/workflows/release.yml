@@ -1,131 +1,130 @@
 # Publishes to npm with trusted publishing (OIDC, no tokens) and provenance.
-# npm trusts this file by name, so every kind of publish lives here.
+#
+# - Run by hand on main: applies the pending change intents, commits, tags and pushes the
+#   release, publishes it under `latest` and creates the GitHub releases. With no pending
+#   intents, it only publishes and releases current versions that are missing (to finish a
+#   run that failed after pushing).
+# - Called by ci.yml with `nightly: true` once CI passes on main: applies the intents without
+#   committing, so the nightly carries the changelog so far, and publishes a nightly of each
+#   package under `nightly`.
+#
+# npm checks the calling workflow's filename, so it trusts both release.yml and ci.yml, each
+# only from the `npm` environment.
 # See docs/development/releasing.md.
 name: Release
 
 on:
-  # Every push to main: a nightly of the next version, under the `nightly` dist-tag.
-  push:
-    branches: [main]
-  # By hand on main: apply the pending change intents, then commit, tag and push the release,
-  # and start this workflow on the new tag. On a tag: publish it under `latest` and create the
-  # GitHub releases, so its provenance names the tagged release commit.
   workflow_dispatch:
-
-concurrency:
-  group: release-${{ github.ref }}
-  cancel-in-progress: false
+  workflow_call:
+    inputs:
+      nightly:
+        description: Publish a nightly of the next version instead of releasing.
+        type: boolean
+        default: false
 
 jobs:
-  nightly:
-    name: Nightly
-    if: github.event_name == 'push'
+  release:
+    name: ${{ inputs.nightly && 'nightly' || 'release' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # npm only accepts OIDC tokens from this environment, and GitHub only lets main deploy to it,
+    # so a branch with an edited workflow can't publish.
+    environment: npm
+    concurrency:
+      group: release
+      cancel-in-progress: false
     permissions:
-      contents: read
+      contents: write
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - name: Require main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Publish from main."
+          exit 1
+
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # Release tags, for the GitHub releases step.
+          fetch-depth: 0
+          # Releases push with a deploy key (an `npm` environment secret), which main's ruleset lets
+          # bypass the pull-request rule; GITHUB_TOKEN can't be a bypass actor. Nightlies don't push.
+          ssh-key: ${{ !inputs.nightly && secrets.RELEASE_DEPLOY_KEY || '' }}
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
         with:
           version: 12
-      - uses: actions/setup-node@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
           cache: pnpm
           registry-url: https://registry.npmjs.org
-      - name: Update npm (trusted publishing needs 11.5.1 or later)
-        run: npm install --global npm@latest
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - name: Set nightly versions
-        run: node scripts/release.ts nightly
-      - name: Publish
-        run: node scripts/release.ts publish nightly
 
-  release:
-    name: Release (version, commit, tag)
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: write
-      actions: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 12
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
+      # Bumps the packages the intents name (and their dependents), prepends their changelogs and
+      # deletes the consumed intents. Lists what it bumped; `[]` when there are no intents.
       - name: Apply change intents
-        run: |
-          if ! pnpm change status | grep -q '^Release plan:'; then
-            echo "::error::No pending change intents. Record one with \`pnpm change\` first."
-            exit 1
-          fi
-          pnpm change status
-          pnpm version -r
-          # pnpm writes changelogs and the ledger unformatted; format what it changed, as a commit would.
-          { git diff --name-only --diff-filter=AM; git ls-files --others --exclude-standard; } | grep -E '\.(md|json|ya?ml)$' | xargs --no-run-if-empty ./node_modules/.bin/oxfmt
+        run: pnpm version -r --json --no-git-checks | tee "$RUNNER_TEMP/bumped.json"
 
-      - name: Commit, tag and push
-        id: commit
-        env:
-          # The release commit only holds generated files, already formatted above; skip the hooks.
-          LEFTHOOK: "0"
+      # A prerelease after the version the intents gave (or the current one). The manifests never
+      # hold a committed nightly, so pnpm's own counter would restart at 0 every time: the UTC
+      # timestamp and commit keep each nightly unique. The `g` keeps a SHA like `0123456` from being
+      # a numeric identifier with a leading zero, which semver rejects.
+      - name: Set nightly versions
+        if: ${{ inputs.nightly }}
+        run: pnpm --filter "./packages/network*" version -r prerelease --preid "nightly.$(date -u +%Y%m%d%H%M%S).g$(git rev-parse --short=7 HEAD)" --no-git-checks
+
+      - name: Commit and tag
+        id: tag
+        if: ${{ !inputs.nightly }}
         run: |
+          mapfile -t tags < <(jq -r '.[] | "\(.name)@\(.newVersion)"' "$RUNNER_TEMP/bumped.json")
+          if [ "${#tags[@]}" -eq 0 ]; then
+            echo "::notice::No pending change intents: publishing and releasing current versions that are missing."
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
-          tags=$(node scripts/release.ts tags)
+          message="Release $(printf '%s, ' "${tags[@]}")"
           git add -A
-          git commit -m "Release $(echo $tags | sed 's/ /, /g')"
-          # main may have moved while this ran; the release commit only touches manifests, changelogs and intents.
-          git pull --rebase origin main
-          for tag in $tags; do git tag "$tag"; done
-          git push --atomic origin HEAD:main $tags
-          echo "tag=$(echo "$tags" | head -n 1)" >> "$GITHUB_OUTPUT"
+          git commit -m "${message%, }"
+          for tag in "${tags[@]}"; do git tag "$tag"; done
+          echo "tags=${tags[*]}" >> "$GITHUB_OUTPUT"
 
-      # The workflow's own pushes don't trigger workflows, but its dispatches do.
-      - name: Start the publish run
+      # Before publishing, so a refused push publishes nothing.
+      - name: Push
+        if: ${{ steps.tag.outputs.tags }}
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh workflow run release.yml --ref "${{ steps.commit.outputs.tag }}"
+          TAGS: ${{ steps.tag.outputs.tags }}
+        run: |
+          read -ra tags <<< "$TAGS"
+          git push --atomic origin HEAD:main "${tags[@]}"
 
-  publish:
-    name: Publish
-    if: github.event_name == 'workflow_dispatch' && github.ref_type == 'tag'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: write
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # Every package's tag on this commit, not just the one this run was started on.
-          fetch-depth: 0
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 12
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-          registry-url: https://registry.npmjs.org
-      - name: Update npm (trusted publishing needs 11.5.1 or later)
-        run: npm install --global npm@latest
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      # Re-running this job is safe: it skips versions already on npm and tags that already have releases.
+      - name: Build
+        run: pnpm build
+
+      # Publishes every public package whose version isn't on npm yet.
       - name: Publish
-        run: node scripts/release.ts publish latest
+        run: pnpm publish -r --provenance --no-git-checks --tag ${{ inputs.nightly && 'nightly' || 'latest' }}
+
+      # One per public package whose current version is tagged but has no release yet, with the
+      # newest section of its changelog as notes.
       - name: Create GitHub releases
+        if: ${{ !inputs.nightly }}
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node scripts/release.ts releases
+        run: |
+          for manifest in packages/*/package.json; do
+            jq -e '.private != true' "$manifest" >/dev/null || continue
+            tag=$(jq -r '"\(.name)@\(.version)"' "$manifest")
+            git rev-parse -q --verify "refs/tags/$tag" >/dev/null || continue
+            gh release view "$tag" >/dev/null 2>&1 && continue
+            awk '/^## /{n++; next} n==1' "$(dirname "$manifest")/CHANGELOG.md" | sed '/./,$!d' > "$RUNNER_TEMP/notes.md"
+            gh release create "$tag" --title "$tag" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
+          done

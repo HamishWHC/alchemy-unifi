@@ -78,6 +78,7 @@
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
 		"test:unit": "vitest run --project unit",
+		"test:controller": "vitest run --project controller",
 		"lint": "oxlint",
 		"lint:fix": "oxlint --fix",
 		"fmt": "oxfmt",

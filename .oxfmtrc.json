@@ -16,5 +16,5 @@
 			}
 		}
 	],
-	"ignorePatterns": ["**/.generated-specs/**"]
+	"ignorePatterns": ["**/.generated-specs/**", "**/CHANGELOG.md"]
 }
