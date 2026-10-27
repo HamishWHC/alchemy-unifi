@@ -193,3 +193,51 @@ test.provider("refuses a policy from another zone pair", (stack) =>
 		expect(String(refused)).toContain("belongs to another zone pair");
 	}),
 );
+
+test.provider("keeps the state store's policy in place quietly, even when exclusive", (stack) =>
+	Effect.gen(function* () {
+		const siteId = current().site.id;
+		const gateway = yield* zone("Gateway");
+		// What `UnifiNetwork.state()` makes, made behind the stack's back.
+		const state = yield* sdk(
+			Sdk.createFirewallPolicy({
+				siteId,
+				name: "alchemy-state/Other/dev",
+				description: "alchemy-state:v1:",
+				enabled: false,
+				action: { type: "BLOCK" },
+				source: { zoneId: gateway },
+				destination: { zoneId: gateway },
+				ipProtocolScope: { ipVersion: "IPV4_AND_IPV6" },
+				loggingEnabled: false,
+			}),
+		);
+		const { GATEWAY } = UnifiNetwork.FirewallZone;
+		const deployed = yield* stack.deploy(
+			Effect.gen(function* () {
+				const mine = yield* UnifiNetwork.FirewallPolicy("mine", {
+					...block("Mine"),
+					source: { zone: GATEWAY },
+					destination: { zone: GATEWAY },
+				});
+				yield* UnifiNetwork.FirewallPolicyOrdering("ordering", {
+					source: GATEWAY,
+					destination: GATEWAY,
+					beforeSystemDefined: [mine],
+					exclusive: true,
+				});
+				return { mine };
+			}),
+		);
+		const order = yield* sdk(
+			Sdk.getFirewallPolicyOrdering({
+				siteId,
+				sourceFirewallZoneId: gateway,
+				destinationFirewallZoneId: gateway,
+			}),
+		);
+		expect(order.orderedFirewallPolicyIds.beforeSystemDefined).toEqual([deployed.mine.firewallPolicyId, state.id]);
+		yield* stack.destroy();
+		yield* sdk(Sdk.deleteFirewallPolicy({ siteId, firewallPolicyId: state.id }));
+	}),
+);

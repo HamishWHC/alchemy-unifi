@@ -10,6 +10,7 @@ import { type FirewallZoneReference, resolveFirewallZone } from "./FirewallZone.
 import { captureServices } from "./internal/Services.ts";
 import type { Providers } from "./Providers.ts";
 import { checkSameSite, resolveSite, type Site } from "./Site.ts";
+import { STATE_POLICY_PREFIX } from "./State.ts";
 
 export interface FirewallPolicyOrderingProps {
 	/** Site of the zones. @default the profile's site, else the console's only site */
@@ -114,6 +115,25 @@ const explainMissing = Effect.fn(function* (site: Site, firewallPolicyId: string
 	return `"${policy.name}" isn't in the zone pair's ordering`;
 });
 
+/**
+ * The state store's policies (`UnifiNetwork.state()`) among `ids`. The store
+ * may have created one since the run's policy list was read, so policies
+ * missing from it are fetched.
+ */
+const statePolicies = Effect.fn(function* (site: Site, ids: ReadonlyArray<string>) {
+	const policies = yield* listFirewallPolicies(site.id);
+	const names = yield* Effect.forEach(ids, (id) => {
+		const listed = policies.find((p) => p.id === id);
+		return listed !== undefined
+			? Effect.succeed(listed.name)
+			: withConnection(Sdk.getFirewallPolicy({ siteId: site.id, firewallPolicyId: id })).pipe(
+					Effect.map((policy): string | undefined => policy.name),
+					Effect.catchTag("NotFound", () => Effect.undefined),
+				);
+	});
+	return ids.filter((_, i) => names[i]?.startsWith(STATE_POLICY_PREFIX) === true);
+});
+
 const describePolicies = Effect.fn(function* (site: Site, ids: ReadonlyArray<string>) {
 	const policies = yield* listFirewallPolicies(site.id);
 	return ids.map((id) => `"${policies.find((p) => p.id === id)?.name ?? id}"`).join(", ");
@@ -129,7 +149,9 @@ const describePolicies = Effect.fn(function* (site: Site, ids: ReadonlyArray<str
  * bucket, in their current relative order, with a warning; `exclusive: true`
  * fails instead. A policy the ordering listed before but no longer does is
  * kept quietly, even when exclusive: it's usually being deleted in the same
- * deploy, which runs after the ordering is applied. System-defined policies sit between the two buckets and
+ * deploy, which runs after the ordering is applied. The state store's
+ * policies (`UnifiNetwork.state()`, Gateway → Gateway) are kept quietly too.
+ * System-defined policies sit between the two buckets and
  * can't be reordered; policies UniFi derives from UI Objects aren't ordered
  * at all.
  *
@@ -196,10 +218,13 @@ export const FirewallPolicyOrderingProvider = () =>
 
 							const unlisted = (ids: ReadonlyArray<string>) => ids.filter((id) => !listed.includes(id));
 							const formerlyListed = output?.listedFirewallPolicyIds ?? [];
-							const unmanaged = [
+							const unlistedNow = [
 								...unlisted(current.beforeSystemDefined),
 								...unlisted(current.afterSystemDefined),
 							].filter((id) => !formerlyListed.includes(id));
+							// The state store's policies are disabled and kept where they are, without a word.
+							const stateIds = yield* statePolicies(site, unlistedNow);
+							const unmanaged = unlistedNow.filter((id) => !stateIds.includes(id));
 							if (unmanaged.length > 0) {
 								const names = yield* describePolicies(site, unmanaged);
 								if (news.exclusive === true) {

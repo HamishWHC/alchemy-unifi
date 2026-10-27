@@ -11,6 +11,7 @@
 ## Background
 
 - [connection.md](connection.md): the auth provider, credentials, connection, sites, read cache and TLS.
+- [state.md](state.md): `UnifiNetwork.state()`, the state store on the console.
 - [resources/](resources/README.md): resource conventions, lifecycle and lookups, and a page per resource.
 - [unifi-api.md](unifi-api.md): what's known about UniFi's APIs, paths, auth and versions, including behaviour verified on the test controller.
 - [sdk.md](sdk.md): using the generated SDK.

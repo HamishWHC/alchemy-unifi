@@ -6,6 +6,7 @@ export { Providers, providers } from "./Providers.ts";
 export * as ReadCache from "./ReadCache.ts";
 export { UnifiNetworkReadCache } from "./ReadCache.ts";
 export * from "./Site.ts";
+export { DEFAULT_WARN_AT, state, type UnifiStateOptions } from "./State.ts";
 export * from "./DnsPolicy.ts";
 export * from "./FirewallPolicy.ts";
 export * from "./FirewallPolicyOrdering.ts";
