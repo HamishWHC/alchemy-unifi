@@ -57,14 +57,14 @@ export default Alchemy.Stack(
 );
 ```
 
-Then `npx alchemy plan` and `npx alchemy deploy`.
+Then `npx alchemy plan` and `npx alchemy deploy`. [Getting started](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/getting-started.md) walks through it, including taking over an existing setup with `--adopt`.
 
 ## Connecting to a console
 
-Add the `UnifiNetwork` provider to an Alchemy profile:
+Add the `UnifiNetwork` provider to Alchemy's default profile:
 
 ```sh
-npx alchemy profile edit --profile home --add UnifiNetwork
+npx alchemy profile edit --add UnifiNetwork
 ```
 
 It asks how to reach the console:
@@ -72,11 +72,11 @@ It asks how to reach the console:
 - **Directly:** the console's URL (e.g. `https://192.168.1.1`) and a Network API key (the Network app's Settings → Integrations). It offers to pin the console's self-signed certificate.
 - **Through ui.com:** a Site Manager API key from unifi.ui.com. It lists your consoles to pick from.
 
-Then `npx alchemy profile show --profile home` connects and shows the Network version. In CI, set `UNIFI_URL` (or `UNIFI_CONSOLE_ID`) and `UNIFI_API_KEY` instead.
+Then `npx alchemy profile show` connects and shows the Network version. Use other profiles (`--profile <name>`) for other consoles, sites or connection methods, and in CI set `UNIFI_URL` (or `UNIFI_CONSOLE_ID`) and `UNIFI_API_KEY` instead. See [connecting to a console](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/connecting.md).
 
 ## State on the console
 
-`UnifiNetwork.state()` keeps the stack's state in a disabled firewall policy on the console it manages, so a stack needs nothing but the console: no S3 bucket or other store. Every run locks the stage with a short-lived traffic-matching list. It suits UniFi-only stacks, and holds up to about 7.5 MiB of compressed state through ui.com or 16 MiB directly. Any other Alchemy state store works too.
+`UnifiNetwork.state()` keeps the stack's state in a disabled firewall policy on the console it manages, so a stack needs nothing but the console: no S3 bucket or other store. Every run locks the stage with a short-lived traffic-matching list. It suits UniFi-only stacks, and holds up to about 7.5 MiB of compressed state through ui.com or 16 MiB directly. Any other Alchemy state store works too. [Details and gotchas](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/state.md).
 
 ## Requirements
 
@@ -85,7 +85,7 @@ Then `npx alchemy profile show --profile home` connects and shows the Network ve
 
 ## Docs
 
-[github.com/HamishWHC/alchemy-unifi/docs](https://github.com/HamishWHC/alchemy-unifi/tree/main/docs): [connection and auth](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/connection.md), [resources](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/resources/README.md), [the state store](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/state.md). The raw SDK is [`@alchemy-unifi/network-sdk`](https://www.npmjs.com/package/@alchemy-unifi/network-sdk).
+[The docs](https://github.com/HamishWHC/alchemy-unifi/tree/main/docs#readme) cover [getting started](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/getting-started.md), [connecting](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/connecting.md), [concepts](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/concepts.md), each resource with examples, and [the state store](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/state.md). The raw SDK is [`@alchemy-unifi/network-sdk`](https://www.npmjs.com/package/@alchemy-unifi/network-sdk).
 
 ## License
 

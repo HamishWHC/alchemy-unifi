@@ -96,9 +96,29 @@ const builtin = (name: BuiltinFirewallZoneName): BuiltinFirewallZone => ({ built
  *
  * @example
  * ```ts
- * const cameras = yield* UnifiNetwork.FirewallZone("cameras", { name: "Cameras" });
- * yield* UnifiNetwork.Network("cctv", { ..., zone: cameras });
- * yield* UnifiNetwork.Network("lan", { ..., zone: UnifiNetwork.FirewallZone.INTERNAL });
+ * import * as UnifiNetwork from "@alchemy-unifi/network";
+ * import * as Alchemy from "alchemy";
+ * import * as Effect from "effect/Effect";
+ *
+ * export default Alchemy.Stack(
+ * 	"HomeNetwork",
+ * 	{ providers: UnifiNetwork.providers(), state: UnifiNetwork.state() },
+ * 	Effect.gen(function* () {
+ * 		const cameras = yield* UnifiNetwork.FirewallZone("cameras", { name: "Cameras" });
+ * 		// Networks join zones from the network's side.
+ * 		yield* UnifiNetwork.Network("cctv", {
+ * 			management: "GATEWAY",
+ * 			name: "CCTV",
+ * 			vlanId: 30,
+ * 			enabled: true,
+ * 			cellularBackupEnabled: false,
+ * 			internetAccessEnabled: false,
+ * 			isolationEnabled: true,
+ * 			zone: cameras, // or a built-in zone, e.g. UnifiNetwork.FirewallZone.INTERNAL
+ * 			ipv4Configuration: { autoScaleEnabled: false, hostIpAddress: "192.168.30.1", prefixLength: 24 },
+ * 		});
+ * 	}),
+ * );
  * ```
  */
 export const FirewallZone = Resource<FirewallZone>("UnifiNetwork.FirewallZone")({

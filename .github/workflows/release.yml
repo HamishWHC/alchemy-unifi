@@ -1,6 +1,6 @@
 # Publishes to npm with trusted publishing (OIDC, no tokens) and provenance.
 # npm trusts this file by name, so both kinds of release live here.
-# See docs/releasing.md.
+# See docs/development/releasing.md.
 name: Release
 
 on:

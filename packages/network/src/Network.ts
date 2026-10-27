@@ -187,17 +187,27 @@ const isUserDefined = (network: Sdk.NetworkOverview) => network.metadata.origin 
  *
  * @example
  * ```ts
- * yield* UnifiNetwork.Network("guest", {
- *   management: "GATEWAY",
- *   name: "Guest",
- *   vlanId: 12,
- *   enabled: true,
- *   cellularBackupEnabled: false,
- *   internetAccessEnabled: true,
- *   isolationEnabled: true,
- *   zone: UnifiNetwork.FirewallZone.HOTSPOT,
- *   ipv4Configuration: { autoScaleEnabled: false, hostIpAddress: "192.168.12.1", prefixLength: 24 },
- * });
+ * import * as UnifiNetwork from "@alchemy-unifi/network";
+ * import * as Alchemy from "alchemy";
+ * import * as Effect from "effect/Effect";
+ *
+ * export default Alchemy.Stack(
+ * 	"HomeNetwork",
+ * 	{ providers: UnifiNetwork.providers(), state: UnifiNetwork.state() },
+ * 	Effect.gen(function* () {
+ * 		yield* UnifiNetwork.Network("guest", {
+ * 			management: "GATEWAY",
+ * 			name: "Guest",
+ * 			vlanId: 12,
+ * 			enabled: true,
+ * 			cellularBackupEnabled: false,
+ * 			internetAccessEnabled: true,
+ * 			isolationEnabled: true,
+ * 			zone: UnifiNetwork.FirewallZone.HOTSPOT,
+ * 			ipv4Configuration: { autoScaleEnabled: false, hostIpAddress: "192.168.12.1", prefixLength: 24 },
+ * 		});
+ * 	}),
+ * );
  * ```
  */
 export const Network = Resource<Network>("UnifiNetwork.Network")({

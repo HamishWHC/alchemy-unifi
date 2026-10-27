@@ -1,20 +1,35 @@
 # alchemy-unifi
 
-[Alchemy](https://alchemy.run) (v2, Effect-native) providers for Ubiquiti UniFi. These docs describe what exists now.
+[Alchemy](https://alchemy.run) providers for Ubiquiti UniFi. Describe a UniFi site's networks, Wi-Fi, zone-based firewall and local DNS as Effect code, and let Alchemy plan and apply the changes.
 
-## Notes
+| Package                      | What                                                                                     |
+| ---------------------------- | ---------------------------------------------------------------------------------------- |
+| `@alchemy-unifi/network`     | The Alchemy provider for the UniFi Network application, and a state store on the console |
+| `@alchemy-unifi/network-sdk` | The raw Effect SDK for the UniFi Network Integration API, which the provider is built on |
 
-- Each UniFi application gets two packages: the Alchemy provider (`packages/network`, `@alchemy-unifi/network`) and its raw distilled SDK (`packages/network-sdk`, `@alchemy-unifi/network-sdk`), laid out like a `@distilled.cloud/*` package. The provider depends on the SDK; anyone needing an escape hatch uses the SDK package directly.
-- `packages/network-sdk/src/services/` is generated (see [spec-generation.md](spec-generation.md)); the rest of `packages/network-sdk/src/` is hand-written.
+## Guides
 
-## Background
+- [Getting started](getting-started.md): install, connect to a console, deploy a first stack, and bring an existing setup under management.
+- [Connecting to a console](connecting.md): direct and ui.com connections, certificates, several consoles, CI.
+- [Concepts](concepts.md): references and lookups, built-in zones, how changes made in the UI are handled, adoption and drift.
+- [State on the console](state.md): `UnifiNetwork.state()`, which keeps a stack's state on the console it manages.
+- [The SDK](sdk.md): calling the Integration API directly.
 
-- [connection.md](connection.md): the auth provider, credentials, connection, sites, read cache and TLS.
-- [state.md](state.md): `UnifiNetwork.state()`, the state store on the console.
-- [resources/](resources/README.md): resource conventions, lifecycle and lookups, and a page per resource.
-- [unifi-api.md](unifi-api.md): what's known about UniFi's APIs, paths, auth and versions, including behaviour verified on the test controller.
-- [sdk.md](sdk.md): using the generated SDK.
-- [spec-generation.md](spec-generation.md): how the SDK is generated, and how to fix the spec.
-- [testing.md](testing.md): unit tests, controller tests and the test controller.
-- [releasing.md](releasing.md): change intents, nightlies, releases and the one-time npm bootstrap.
-- [tooling.md](tooling.md): packaging and formatting rules that aren't obvious from the config.
+## Resources
+
+| Resource                                                        | What                                                  |
+| --------------------------------------------------------------- | ----------------------------------------------------- |
+| [`FirewallZone`](resources/FirewallZone.md)                     | Custom zones in the zone-based firewall               |
+| [`Network`](resources/Network.md)                               | Networks (VLANs), with DHCP and zone membership       |
+| [`WifiBroadcast`](resources/WifiBroadcast.md)                   | Wi-Fi networks (SSIDs)                                |
+| [`TrafficMatchingList`](resources/TrafficMatchingList.md)       | Reusable port and address lists for firewall policies |
+| [`FirewallPolicy`](resources/FirewallPolicy.md)                 | Zone-to-zone firewall policies                        |
+| [`FirewallPolicyOrdering`](resources/FirewallPolicyOrdering.md) | The order a zone pair's policies are evaluated in     |
+| [`DnsPolicy`](resources/DnsPolicy.md)                           | Local DNS records and forwarded domains               |
+
+## Requirements
+
+- UniFi Network **10.6** with the zone-based firewall. The provider tracks the latest stable Network release, and warns when a console runs another version.
+- Node 22 or later, Alchemy 2 (beta) and Effect 4.
+
+Working on the packages themselves? See [development/](development/README.md).

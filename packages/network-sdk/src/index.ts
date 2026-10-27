@@ -8,8 +8,12 @@
  * @example
  * ```ts
  * import * as UnifiNetwork from "@alchemy-unifi/network-sdk";
+ * import * as Effect from "effect/Effect";
  *
- * const sites = yield* UnifiNetwork.getSiteOverviewPage({});
+ * export const siteNames = Effect.gen(function* () {
+ * 	const sites = yield* UnifiNetwork.getSiteOverviewPage({});
+ * 	return sites.data.map((site) => site.name);
+ * });
  * ```
  */
 export * from "./credentials.ts";

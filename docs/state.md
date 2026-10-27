@@ -1,46 +1,47 @@
-# State store
+# State on the console
 
-`UnifiNetwork.state()` (`src/State.ts`) keeps a stack's Alchemy state on the console the profile points at, so a stack needs only a console (directly or through ui.com) and no other infrastructure.
+Alchemy keeps a record of what each stack deployed (its state). `UnifiNetwork.state()` keeps it on the console the stack manages, so a UniFi stack needs nothing else: no S3 bucket, no state server, nothing to back up separately.
 
 ```ts
+import * as UnifiNetwork from "@alchemy-unifi/network";
+import * as Alchemy from "alchemy";
+import * as Effect from "effect/Effect";
+
 export default Alchemy.Stack(
 	"HomeNetwork",
 	{ providers: UnifiNetwork.providers(), state: UnifiNetwork.state() },
 	Effect.gen(function* () {
-		// ...
+		yield* UnifiNetwork.FirewallZone("iot-zone", { name: "IoT" });
 	}),
 );
 ```
 
-## How it's stored
+It uses the same profile (or environment variables) as the resources. Each stage of each stack is one **disabled firewall policy** named `alchemy-state/<stack>/<stage>`, from the Gateway zone to itself, whose description holds the compressed state. It changes nothing about how traffic flows.
 
-- **One firewall policy per stack and stage**, named `alchemy-state/<stack>/<stage>`. It's disabled, Gateway → Gateway (allowed, and needs no other objects), and its description is `alchemy-state:v1:` followed by the base64 of the Brotli-compressed JSON of the stage's records, stack output and lock record. The Integration API has no blob store, and policy descriptions are the largest free-text field it has.
-- **The store finds the policy by name, then uses it by ID.** Policy names aren't unique on the console, so two policies with one stage's name is an error (delete the stale one).
-- **`FirewallPolicyOrdering` ignores it:** a Gateway → Gateway ordering keeps state policies where they are, without the unlisted-policy warning, even when `exclusive`.
-- **`alchemy nuke` deletes it** (and any lock list), as AWS's nuke deletes the S3 state bucket: nuke deletes everything the providers can list.
+## Locking
 
-## Lock
+Every run, `plan` included, locks the stage while it runs: it creates a traffic-matching list named `alchemy-lock/<stack>/<stage>` and deletes it at the end. A second run of the same stage at the same time fails with "Another run holds the UniFi state lock". Different stages are independent.
 
-- **The first operation on a stage takes the lock, reads included**, as Alchemy's bucket and Postgres stores do. So `plan` writes to the console too: it creates the lock and records it in the state policy, and it deletes the lock when it finishes. Two runs of one stage at once fail.
-- **The lock is a traffic-matching list** named `alchemy-lock/<stack>/<stage>`. List names are unique and race-free (a duplicate is a 422), unlike policy names, and the API has no conditional writes. The list exists only while a run holds the stage.
-- **Stale locks:** the holder records the list's ID and an expiry (2 minutes) in the state policy, and renews it every 30 s. A later run breaks an expired lock by deleting that list **by ID**, so two breakers can't both win. A lock list with no record needs deleting by hand in the UI, and the error says so. That happens when a run crashes before recording its lock, which includes any run on a stage that has no policy yet.
-- **Before each write the store checks the list still exists**, at most every 5 s, and fails if it's gone.
-
-## Writes
-
-- **The stage loads once per run.** Reads come from memory after that.
-- **Every change is on the console when it returns.** One write is in flight at a time. Changes made during a write join the next one, so parallel resource updates share writes. Each write sends the whole stage.
-- **Cost per write** (Express 7, Network 10.6.109): about 0.8 s directly and 1.5 s through ui.com, up to 256 KB; 5 s directly and 10–15 s through ui.com at 4 MiB. On the test controller it's about 40 ms.
+A run that crashes leaves its lock behind, and the next run takes it over once it expires (2 minutes). If the error says nobody has recorded holding the lock, and nothing else is running, delete that traffic-matching list in the UniFi UI.
 
 ## Size
 
-- **Caps:** a console stores descriptions of up to 16,776,462 bytes (MongoDB's 16 MiB document, less the rest of the policy; one byte more is a 500). The ui.com connector refuses request bodies over about 7.5 MiB (`content too large`), so through ui.com the cap is 7,863,731 bytes. A stage reached both ways has to fit the smaller cap.
-- **Warning:** a write over `warnAt` (default 4,000,000 bytes) logs a warning once per run. Brotli shrinks state about twelvefold, so that's about 35 MB of JSON. A real stack is far smaller: 45 resources come to about 7 KB.
+| Connection     | Most it can hold (compressed) |
+| -------------- | ----------------------------- |
+| Directly       | about 16 MiB                  |
+| Through ui.com | about 7.5 MiB                 |
 
-## Secrets
+State compresses about twelvefold, and a home network with 45 resources takes about 7 KB, so few stacks get near this. A stage you reach both ways has to fit the smaller limit. The store warns once its state passes 4 MB, to leave time to move to another store; change that with `UnifiNetwork.state({ warnAt: 10_000_000 })`.
 
-State holds `Redacted` values (e.g. Wi-Fi passphrases) in plaintext, as every Alchemy store does, and this store doesn't encrypt them. A UniFi stack's secrets are already on the console, readable by anyone who can read the policy. A stack that also manages other providers' resources would put their secrets on the console too.
+Each change is written to the console before the run moves on, which takes about a second through ui.com. Changes Alchemy makes in parallel share writes.
+
+## Gotchas
+
+- **The state includes secrets in plaintext,** like every Alchemy state store: Wi-Fi passphrases, for example. They're no more exposed than on the console itself, which stores them too. But a stack that also manages other providers' resources (cloud accounts, DNS providers) would put their secrets on the console: use another state store for those stacks.
+- **A factory reset (or restoring an older backup) loses or rewinds the state.** Recover with `npx alchemy deploy --stage home --adopt`, which takes over the existing objects again.
+- **`alchemy nuke` deletes the state policy and any lock,** as AWS's nuke deletes its state bucket: nuke deletes everything the providers can list.
+- **Don't edit or delete the `alchemy-state/` policies in the UI.**
 
 ## Moving to another store
 
-Alchemy has no state migration or import. Switch the stack's `state`, then `plan --adopt` and `deploy --adopt`. That's also how a stack recovers after a factory reset wipes its state.
+Alchemy has no state migration. Switch the stack's `state`, then run `plan --adopt` and `deploy --adopt` to take over the existing objects in the new store. Delete the old `alchemy-state/` policy afterwards.

@@ -8,6 +8,10 @@ Never test against a real console; see `AGENTS.md`.
     - remote mode is tested against a fake `HttpClient`, since there's no console behind ui.com to use.
 - **Controller tests** (`test/controller/**` in `network` and `network-sdk`) run against the test controller, a disposable UniFi Network Application in Docker that accepts API keys like a real console. `pnpm test` runs both kinds, and starts the controller if it isn't running (24 s from scratch, plus image pulls the first time; 2-3 s when it's already up).
 
+## Consumer smoke test
+
+`scripts/smoke/run.sh` (run in CI after the controller tests) packs both packages, installs the tarballs with npm into a fresh project outside the workspace (`scripts/smoke/project/` plus the provider's peers at their declared ranges), and typechecks it strictly, `skipLibCheck` off, so the published declarations are checked too. The typecheck includes every TypeScript block in the user docs, the package READMEs and the packages' doc comments (`scripts/smoke/examples.ts` extracts them). It then deploys and destroys the project's stack, with `UnifiNetwork.state()`, on a fresh test-controller site (`node src/cli.ts with-site <label> -- <command>` in `packages/test-controller`). `--no-deploy` stops after the typecheck. It needs a build.
+
 ## Limits of the test controller
 
 - **No system-defined firewall policies.** Its fake gateway doesn't make the controller generate the zone matrix (only two derived `Internal` → `Gateway` policies appear), so anything about system policies (network isolation and internet-access flags, mDNS policies, the security posture) has to be checked on a real gateway.

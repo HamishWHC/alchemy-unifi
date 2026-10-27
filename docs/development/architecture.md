@@ -1,6 +1,6 @@
-# Connection and auth
+# Architecture: connection and auth
 
-How `@alchemy-unifi/network` finds and talks to a console. One Alchemy profile (or one set of environment variables) points at one console; users with several consoles use a stage and profile per console.
+How `@alchemy-unifi/network` finds and talks to a console. The user-facing side is [connecting.md](../connecting.md). One Alchemy profile (or one set of environment variables) points at one console; users with several consoles use a stage and profile per console.
 
 ## Auth provider `UnifiNetwork`
 
@@ -34,13 +34,13 @@ withConnection(effect)    provides the SDK's Credentials and HttpClient to SDK c
 Both services resolve on first use, so building `providers()` never needs a profile. A failed resolution dies with `CredentialsUnavailable` (Alchemy's convention). A failed connection fails with the SDK's `ConfigError`, saying whether the key was rejected, the console was unreachable or the certificate didn't match.
 
 - **`source`** on the resolved credentials says where they came from: `{ type: "profile", profile }` or `{ type: "env" }`. Consumers can use it to check a stage is paired with the right profile.
-- **Stack bodies can require `UnifiNetworkCredentials`** (`yield* yield* UnifiNetworkCredentials`). It carries Alchemy's `kind: "Credentials"` tag, the type-level marker Alchemy uses to let credentials services into a stack's requirements. `UnifiNetworkConnection` and `UnifiNetworkReadCache` carry `kind: "Environment"` for the same reason, so lookups can run in stack bodies (see [resources/README.md](resources/README.md#lookups)).
+- **Stack bodies can require `UnifiNetworkCredentials`** (`yield* yield* UnifiNetworkCredentials`). It carries Alchemy's `kind: "Credentials"` tag, the type-level marker Alchemy uses to let credentials services into a stack's requirements. `UnifiNetworkConnection` and `UnifiNetworkReadCache` carry `kind: "Environment"` for the same reason, so lookups can run in stack bodies (see [resources.md](resources.md#lookups)).
 
 - **Provider-private client.** Alchemy runs lifecycle operations in the stack's merged context, so an `HttpClient` from `providers()` would replace other providers' clients and the state store's. `providers()` therefore provides no `HttpClient`, and resource code must wrap SDK calls in `withConnection`.
 - **Base URL probe.** A `local` URL is tried as a UniFi OS console (`{url}/proxy/network/integration`), then as a standalone controller (`{url}/integration`), with `GET /v1/info`. A 404 moves on; anything else stops. `remote` uses `https://api.ui.com/v1/connector/consoles/{consoleId}/proxy/network/integration`, where `consoleId` is the Site Manager host `id`; the connector accepts `X-API-KEY` (verified by hand on a real console, since CI can't reach one).
 - **Retries:** the probe uses the SDK's default retries (about 20 s for transport errors), except for certificate failures, which retrying can't fix.
 - **Version check:** a warning, not a failure, when the console's major.minor differs from the SDK's `SPEC_VERSION`.
-- **Remote rate limit:** a 90 requests/minute token bucket per console (the connector allows 100), in front of the SDK's 429 retries. A run beyond the 90-request burst waits ~0.7 s per request, so resources read through lists where possible (see [resources/README.md](resources/README.md#lifecycle)); local connections aren't limited.
+- **Remote rate limit:** a 90 requests/minute token bucket per console (the connector allows 100), in front of the SDK's 429 retries. A run beyond the 90-request burst waits ~0.7 s per request, so resources read through lists where possible (see [resources.md](resources.md#lifecycle)); local connections aren't limited.
 
 ## Sites
 

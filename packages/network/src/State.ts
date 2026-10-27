@@ -22,7 +22,7 @@ import * as ReadCache from "./ReadCache.ts";
 import { resolveSite } from "./Site.ts";
 
 /**
- * State store on the console itself (see `docs/state.md`). Each stack and
+ * State store on the console itself (see `docs/development/state-store.md`). Each stack and
  * stage is one disabled Gateway → Gateway firewall policy whose description
  * holds the stage's state, and a traffic-matching list (whose names, unlike
  * policies', are unique) is its lock.
@@ -565,12 +565,16 @@ const consoleBackend = Effect.gen(function* () {
  *
  * @example
  * ```ts
+ * import * as UnifiNetwork from "@alchemy-unifi/network";
+ * import * as Alchemy from "alchemy";
+ * import * as Effect from "effect/Effect";
+ *
  * export default Alchemy.Stack(
- *   "HomeNetwork",
- *   { providers: UnifiNetwork.providers(), state: UnifiNetwork.state() },
- *   Effect.gen(function* () {
- *     // ...
- *   }),
+ * 	"HomeNetwork",
+ * 	{ providers: UnifiNetwork.providers(), state: UnifiNetwork.state() },
+ * 	Effect.gen(function* () {
+ * 		yield* UnifiNetwork.FirewallZone("iot-zone", { name: "IoT" });
+ * 	}),
  * );
  * ```
  */

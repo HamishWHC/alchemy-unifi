@@ -1,55 +1,57 @@
-# SDK (`@alchemy-unifi/network-sdk`)
+# The SDK
 
-An Effect SDK for the UniFi Network Integration API in `packages/network-sdk`, generated with distilled's codegen (see [spec-generation.md](spec-generation.md)). Its layout and `exports` match a `@distilled.cloud/*` package (e.g. `@distilled.cloud/neon`), so it can be upstreamed without changes.
+`@alchemy-unifi/network-sdk` is an Effect SDK for the UniFi Network Integration API (Network 10.6), generated from UniFi's OpenAPI spec. Use it to call the API directly: for scripts, for things the provider doesn't manage yet, or for reading data such as clients and devices.
 
-Hand-written files sit beside the generated `services/` and follow distilled's layout:
+```sh
+npm install @alchemy-unifi/network-sdk effect
+```
 
-- the root re-exports every operation (`Sdk.createNetwork`), plus `Services.network`, `T` (traits), `Retry`, the protocol and errors;
-- subpaths `./Credentials`, `./Errors`, `./Traits`, `./Pagination`, `./Protocol` and `./Retry` expose the hand-written modules, and `./<service>` (`./network`) a generated service.
-
-It's a separate package so that consumers needing an escape hatch can call the API directly; `@alchemy-unifi/network` doesn't re-export it.
-
-## Using it
-
-Each operation is an `Effect` that needs `Credentials` and an `HttpClient`:
+Each operation is a function returning an `Effect`, which needs `Credentials` and an `HttpClient`:
 
 ```ts
+import * as Sdk from "@alchemy-unifi/network-sdk";
 import * as Effect from "effect/Effect";
 import * as FetchHttpClient from "effect/http/FetchHttpClient";
 import * as Layer from "effect/Layer";
 import * as Redacted from "effect/Redacted";
-import * as Sdk from "@alchemy-unifi/network-sdk";
+import * as Stream from "effect/Stream";
 
 const credentials = Layer.succeed(
 	Sdk.Credentials,
 	Effect.succeed({
-		baseUrl: "http://localhost:18080/proxy/network/integration", // console-style base, no /v1
-		apiKey: Redacted.make("alchemy-unifi-test-key"),
+		baseUrl: "https://192.168.1.1/proxy/network/integration",
+		apiKey: Redacted.make("<network api key>"),
 	}),
 );
 
-const program = Effect.gen(function* () {
-	const sites = yield* Sdk.getSiteOverviewPage({});
-	const siteId = sites.data[0]?.id ?? "";
-	const network = yield* Sdk.createNetwork({
-		siteId,
-		body: { management: "UNMANAGED", name: "example", enabled: true, vlanId: 99 },
-	});
-	yield* Sdk.deleteNetwork({ siteId, networkId: network.id });
-});
-
-program.pipe(Effect.provide(Layer.mergeAll(credentials, FetchHttpClient.layer)));
+export const program = Effect.gen(function* () {
+	const [site] = (yield* Sdk.getSiteOverviewPage({})).data;
+	if (site === undefined) return;
+	// Paginated operations also have `.items(...)` (a Stream of every item) and `.pages(...)`.
+	const networks = yield* Stream.runCollect(Sdk.getNetworksOverviewPage.items({ siteId: site.id }));
+	for (const network of networks) yield* Effect.log(`${network.name}: VLAN ${network.vlanId}`);
+}).pipe(Effect.provide(Layer.mergeAll(credentials, FetchHttpClient.layer)));
 ```
 
-Things the types don't make obvious:
+## Base URLs
 
-- Paginated operations also have `.pages(input)` and `.items(input)` Streams.
-- Unmatched failures become `UnknownUnifiNetworkError`; schema failures become `UnifiNetworkParseError`.
-- Throttling and transient errors retry by default; opt out per call with `Sdk.Retry.none`.
+| Console                     | `baseUrl`                                                                         | Key                  |
+| --------------------------- | --------------------------------------------------------------------------------- | -------------------- |
+| UniFi OS console, directly  | `https://<console>/proxy/network/integration`                                     | Network API key      |
+| Self-hosted controller      | `https://<host>:8443/integration`                                                 | Network API key      |
+| Any console, through ui.com | `https://api.ui.com/v1/connector/consoles/<console id>/proxy/network/integration` | Site Manager API key |
 
-## Known gaps
+Consoles use self-signed certificates, which `FetchHttpClient` rejects. Use a client that trusts the console's certificate, or the provider, which handles pinning.
 
-- **Untyped members.** 24 members are `unknown` because UniFi's spec gives them no schema: ACL/firewall `sourceFilter`/`destinationFilter`, Wi-Fi `radiusConfiguration`, device `accessPoint`, and a few metadata fields.
-- **Undocumented required fields.** A few fields the spec marks optional are required by the server, depending on other fields (see [unifi-api.md](unifi-api.md#behaviour-not-in-the-spec)). The provider's props types enforce them.
+## Errors and retries
 
-Patches (`packages/network-sdk/patches/`) can fix either: one marks Wi-Fi passphrases sensitive, so they decode as `Redacted` and accept `Redacted`; another types Wi-Fi basic data rates as integers (the spec's string enums are rejected by the console). See [spec-generation.md](spec-generation.md#fixing-the-spec).
+- Each operation fails with typed errors for the responses UniFi documents (`NotFound`, `UnprocessableEntity`, …). Anything else becomes `UnknownUnifiNetworkError`, and a response that doesn't match the schema becomes `UnifiNetworkParseError`.
+- Throttling and transient failures are retried by default. Opt out with `Sdk.Retry.none`.
+- Fields marked sensitive (Wi-Fi passphrases) are `Redacted`.
+
+## Gotchas
+
+- **Some fields are `unknown`,** because UniFi's spec gives them no schema: firewall and ACL `sourceFilter`/`destinationFilter`, Wi-Fi `radiusConfiguration`, a device's `accessPoint`, and a few metadata fields.
+- **The console requires some fields the spec calls optional,** depending on others (see the gotchas on each [resource page](README.md#resources)). The provider's types enforce them; the SDK's don't.
+- **Requests can't carry fields the console doesn't accept,** so a `GET` response sent back as an update fails until you drop `id`, `metadata` and (for networks) `default`.
+- **ui.com allows 100 requests a minute per console.** The SDK retries 429s, but doesn't pace itself.

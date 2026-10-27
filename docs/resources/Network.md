@@ -1,14 +1,63 @@
 # Network
 
-A network (VLAN). `management` picks the kind and its props: `"GATEWAY"` (routed by the gateway: DHCP, zone, internet access), `"SWITCH"` (routed by a layer-3 switch, `device: { deviceId }`) or `"UNMANAGED"` (carried, not routed).
+A network (VLAN). `management` picks what kind:
 
-- **Replacing deletes first.** Changing `management` or the site replaces the network, deleting the old one first, because VLAN IDs must be unique per site (names needn't be). A network still used by an unmanaged Wi-Fi broadcast can't be deleted (the API wants `cascade=true`), so such a replace fails.
-- **`zone`** is required by the console once the site uses the zone-based firewall (`zoneId must not be null`), on updates too. It's optional in the type because sites without that firewall have no zones.
-- **Explicit defaults** (verified; see the [conventions](README.md#conventions)): a gateway network's `mdnsForwardingEnabled` is `true` (what the console sets on create, in built-in and custom zones alike), sent because a `PUT` without it keeps the old value; a DHCP server's `domainName` is `""`, because the console reports that when it's unset. Other optional fields default to absent. Switch-managed networks aren't covered (the test controller has no layer-3 switch).
-- **The default network** (VLAN 1, `default: true`) is managed by declaring a `Network` with `vlanId: 1` and deploying once with `--adopt`; props may rename it. It's never deleted (destroy leaves it in place), and a change that would replace it (`management`, site) fails the plan, since it must stay gateway-managed in its site. Wi-Fi broadcasts referencing it are sent as `NATIVE`, the only form the console accepts.
-- **`isolationEnabled` and `internetAccessEnabled` are shorthand for system-defined firewall policies** (verified on a real gateway, in built-in and custom zones alike):
-    - isolation on adds five BLOCK policies named "Isolated Networks", from the network's subnet (a source IP filter) to every internal zone, its own included (`Internal`, `Hotspot`, `Dmz`, `IoT`-style custom zones…), but not to `Gateway` or `External`;
-    - internet access off adds one BLOCK policy, "Block <subnet> Internet Access", from the subnet to `External`;
-    - these are system-defined, so policies that should beat them must come before them in the zone pair's ordering (`beforeSystemDefined`).
-- **`mdnsForwardingEnabled` is the gateway mDNS proxy.** The UI's Gateway mDNS Proxy setting (Auto / Off / Custom) is a view of these per-network flags: all on is Auto, all off is Off, some is Custom. While a zone has networks with it on, the gateway generates an "Allow mDNS" policy from that zone to `Gateway`. Saving that UI setting (or the global network settings form it shares with the default security posture) rewrites the flags, so a stack that sets them and the UI can fight; set them in the stack and leave the UI setting alone.
-- **WAN references** inside IPv4 NAT and IPv6 prefix delegation are still raw `wanInterfaceId` strings; WAN lookups are planned.
+| `management`  | Routed by                            | Has                                         |
+| ------------- | ------------------------------------ | ------------------------------------------- |
+| `"GATEWAY"`   | The gateway                          | DHCP, a zone, internet access and isolation |
+| `"SWITCH"`    | A layer-3 switch (`device`)          | DHCP on the switch                          |
+| `"UNMANAGED"` | Another router (carried, not routed) | Just the VLAN                               |
+
+```ts
+import * as UnifiNetwork from "@alchemy-unifi/network";
+import * as Effect from "effect/Effect";
+
+export const networks = Effect.gen(function* () {
+	const guests = yield* UnifiNetwork.Network("guests", {
+		management: "GATEWAY",
+		name: "Guests",
+		vlanId: 40,
+		enabled: true,
+		cellularBackupEnabled: false,
+		internetAccessEnabled: true,
+		isolationEnabled: true,
+		zone: UnifiNetwork.FirewallZone.HOTSPOT,
+		ipv4Configuration: {
+			autoScaleEnabled: false,
+			hostIpAddress: "192.168.40.1",
+			prefixLength: 24,
+			dhcpConfiguration: {
+				mode: "SERVER",
+				ipAddressRange: { start: "192.168.40.100", stop: "192.168.40.250" },
+				leaseTimeSeconds: 86400,
+				pingConflictDetectionEnabled: true,
+			},
+		},
+	});
+	// A VLAN that passes through to another router.
+	const isp = yield* UnifiNetwork.Network("isp-handoff", {
+		management: "UNMANAGED",
+		name: "ISP handoff",
+		vlanId: 99,
+		enabled: true,
+	});
+	return { guests: guests.networkId, isp: isp.networkId };
+});
+```
+
+**Lookup:** `Network.lookup({ name })` or `Network.lookup({ vlanId })`.
+
+**Adoption** matches the VLAN ID (unique per site), and renames the network to match props.
+
+## The default network
+
+Every site has a default network on VLAN 1. To manage it, declare a `Network` with `vlanId: 1` and deploy once with `--adopt`. Props may rename it, but it's never deleted (destroying the stack leaves it in place), and a change that would replace it (`management`, `site`) fails the plan.
+
+## Gotchas
+
+- **`zone` is required** once the site uses the zone-based firewall, which every 10.6 site does. The type has it optional only because older sites have no zones.
+- **Changing `management` (or `site`) replaces the network,** deleting the old one first, because VLAN IDs must be unique. A network still used by a Wi-Fi broadcast outside the stack can't be deleted, so that replacement fails.
+- **`isolationEnabled` and `internetAccessEnabled` create system firewall policies.** Isolation adds "Isolated Networks" BLOCK policies from the network to every internal zone (its own included); turning internet access off adds a "Block … Internet Access" policy to `External`. Your policies that should win over them need to come before them: list them in `beforeSystemDefined` of the pair's [`FirewallPolicyOrdering`](FirewallPolicyOrdering.md).
+- **`mdnsForwardingEnabled` is the gateway mDNS proxy.** The UI's Gateway mDNS Proxy setting (Auto, Off, Custom) is a view of this flag across all networks. Saving that setting in the UI (or the global network settings form it shares) rewrites every network's flag, so set the flags in the stack and leave the UI setting alone. Unset, it's `true`, as the console defaults it.
+- **Gateway networks need a gateway** adopted on the site.
+- **WAN references** (in NAT and IPv6 prefix delegation) are still raw `wanInterfaceId` strings.

@@ -1,8 +1,36 @@
 # FirewallZone
 
-A custom zone in the zone-based firewall: just a `name`.
+A custom zone in the zone-based firewall. Zones group networks, and [firewall policies](FirewallPolicy.md) apply between zones.
 
-- **Networks join zones from the network side** (`Network({ zone })`, user's decision). `FirewallZone` has no `networks` prop and no `networkIds` attribute: both sides are writable in the API, so managing both would make the resources fight.
-- **Built-in zones are constants, not resources:** `FirewallZone.INTERNAL`, `EXTERNAL`, `GATEWAY`, `VPN`, `HOTSPOT`, `DMZ`. Each resolves by name (`Internal`, `External`, `Gateway`, `Vpn`, `Hotspot`, `Dmz`) and `metadata.origin: "SYSTEM_DEFINED"` in the referencing resource's site. Built-in zones can be neither renamed nor deleted.
-- **Renaming keeps members.** The update body must include `networkIds`, and replaces the member list. The zone's own `networkIds` lags a network joining by about 300 ms, and sending a stale list moves the network out (verified), so the provider builds the list from the networks' `zoneId`s instead.
-- **Deleting a zone moves its networks to `Internal`** (verified). Alchemy updates networks that referenced it before deleting it.
+```ts
+import * as UnifiNetwork from "@alchemy-unifi/network";
+import * as Effect from "effect/Effect";
+
+export const zones = Effect.gen(function* () {
+	const iot = yield* UnifiNetwork.FirewallZone("iot-zone", { name: "IoT" });
+	// Networks join a zone from the network's side.
+	const sensors = yield* UnifiNetwork.Network("sensors", {
+		management: "GATEWAY",
+		name: "Sensors",
+		vlanId: 21,
+		enabled: true,
+		cellularBackupEnabled: false,
+		internetAccessEnabled: false,
+		isolationEnabled: false,
+		zone: iot,
+		ipv4Configuration: { autoScaleEnabled: false, hostIpAddress: "192.168.21.1", prefixLength: 24 },
+	});
+	return { iot, sensors };
+});
+```
+
+**Built-in zones** aren't resources: use `FirewallZone.INTERNAL`, `EXTERNAL`, `GATEWAY`, `VPN`, `HOTSPOT` and `DMZ` wherever a zone goes.
+
+**Lookup:** `FirewallZone.lookup({ name })` finds any zone, built-in or custom.
+
+**Adoption** matches the zone's name (custom zones only).
+
+## Gotchas
+
+- **Membership is set on the network** (`Network`'s `zone`), not on the zone, so the two never disagree.
+- **Deleting a zone moves its networks to `Internal`.** Alchemy updates networks that referenced the zone before deleting it.

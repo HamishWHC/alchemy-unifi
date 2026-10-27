@@ -38,7 +38,7 @@ export type StandardWifiSecurityConfiguration = WithFastRoaming<Sdk.WifiSecurity
 
 /**
  * An ordinary SSID. Pass passphrases as `Redacted` (e.g. from
- * `Config.redacted`) to keep them out of logs.
+ * `Config.Redacted`) to keep them out of logs.
  */
 export interface StandardWifiBroadcastProps
 	extends
@@ -166,14 +166,39 @@ const NATIVE_NETWORK: NativeNetwork = { type: "NATIVE" };
  *
  * @example
  * ```ts
- * yield* UnifiNetwork.WifiBroadcast("home", {
- *   type: "STANDARD",
- *   name: "Home",
- *   network: lan,
- *   securityConfiguration: { type: "WPA2_WPA3_PERSONAL", passphrase: yield* Config.redacted("WIFI_PASSPHRASE") },
- *   broadcastingFrequenciesGHz: [2.4, 5],
- *   ...
- * });
+ * import * as UnifiNetwork from "@alchemy-unifi/network";
+ * import * as Alchemy from "alchemy";
+ * import * as Config from "effect/Config";
+ * import * as Effect from "effect/Effect";
+ *
+ * export default Alchemy.Stack(
+ * 	"HomeNetwork",
+ * 	{ providers: UnifiNetwork.providers(), state: UnifiNetwork.state() },
+ * 	Effect.gen(function* () {
+ * 		const lan = yield* UnifiNetwork.Network.lookup({ vlanId: 1 });
+ * 		yield* UnifiNetwork.WifiBroadcast("home", {
+ * 			type: "STANDARD",
+ * 			name: "Home",
+ * 			enabled: true,
+ * 			network: lan,
+ * 			securityConfiguration: {
+ * 				type: "WPA2_PERSONAL",
+ * 				passphrase: yield* Config.Redacted("WIFI_PASSPHRASE"),
+ * 				fastRoamingEnabled: false,
+ * 			},
+ * 			broadcastingFrequenciesGHz: [2.4, 5],
+ * 			hideName: false,
+ * 			clientIsolationEnabled: false,
+ * 			multicastToUnicastConversionEnabled: false,
+ * 			uapsdEnabled: false,
+ * 			channel2gLockedTo6: false,
+ * 			dtimPeriod2gLockedTo3: false,
+ * 			advertiseDeviceName: false,
+ * 			arpProxyEnabled: false,
+ * 			bssTransitionEnabled: true,
+ * 		});
+ * 	}),
+ * );
  * ```
  */
 export const WifiBroadcast = Resource<WifiBroadcast>("UnifiNetwork.WifiBroadcast")({

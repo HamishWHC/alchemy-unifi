@@ -303,15 +303,26 @@ const findByName = Effect.fn(function* (
  *
  * @example
  * ```ts
- * yield* UnifiNetwork.FirewallPolicy("block-iot-to-internal", {
- *   name: "Block IoT to Internal",
- *   enabled: true,
- *   action: { type: "BLOCK" },
- *   source: { zone: iotZone },
- *   destination: { zone: UnifiNetwork.FirewallZone.INTERNAL },
- *   ipProtocolScope: { ipVersion: "IPV4_AND_IPV6" },
- *   loggingEnabled: false,
- * });
+ * import * as UnifiNetwork from "@alchemy-unifi/network";
+ * import * as Alchemy from "alchemy";
+ * import * as Effect from "effect/Effect";
+ *
+ * export default Alchemy.Stack(
+ * 	"HomeNetwork",
+ * 	{ providers: UnifiNetwork.providers(), state: UnifiNetwork.state() },
+ * 	Effect.gen(function* () {
+ * 		const iot = yield* UnifiNetwork.FirewallZone("iot-zone", { name: "IoT" });
+ * 		yield* UnifiNetwork.FirewallPolicy("block-iot-to-internal", {
+ * 			name: "Block IoT to Internal",
+ * 			enabled: true,
+ * 			action: { type: "BLOCK" },
+ * 			source: { zone: iot },
+ * 			destination: { zone: UnifiNetwork.FirewallZone.INTERNAL },
+ * 			ipProtocolScope: { ipVersion: "IPV4_AND_IPV6" },
+ * 			loggingEnabled: false,
+ * 		});
+ * 	}),
+ * );
  * ```
  */
 export const FirewallPolicy = Resource<FirewallPolicy>("UnifiNetwork.FirewallPolicy")({

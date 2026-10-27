@@ -28,7 +28,7 @@ const sites = UnifiNetwork.getSiteOverviewPage({}).pipe(
 
 Remote consoles work too, through the ui.com connector: `https://api.ui.com/v1/connector/consoles/<console id>/proxy/network/integration` with a Site Manager key.
 
-See [the docs](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/sdk.md).
+See [the SDK docs](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/sdk.md) for base URLs, errors, retries and gotchas.
 
 ## License
 

@@ -1,10 +1,41 @@
 # FirewallPolicyOrdering
 
-The evaluation order of user-defined policies from one zone to another: `beforeSystemDefined` and `afterSystemDefined` buckets, with the system-defined policies between them (those can't be reordered).
+The order the policies from one zone to another are evaluated in, first match wins. Each zone pair has two buckets, with the system policies between them: `beforeSystemDefined` and `afterSystemDefined`. System policies themselves can't be reordered.
 
-- **One per zone pair**, and the pair is the identity: an existing ordering adopts without `--adopt`, and deleting the resource leaves the order as it is.
-- **Listing policies makes it depend on them**, so it's applied after they're created or moved into the pair.
-- **The API takes the whole pair or nothing** ("Not all firewall policies specified for the given firewall zone combination", verified). Unlisted policies (e.g. made in the UI) are kept after the listed ones in their bucket, in their current relative order, with a warning; `exclusive: true` fails instead.
-- **Policies the ordering stops listing are kept quietly**, even when exclusive. Alchemy applies the ordering before deleting a removed policy, so without this, removing a policy and its place in an exclusive ordering in one deploy would fail. The attribute `listedFirewallPolicyIds` records what the props listed.
-- **Validation:** a listed policy that's missing, derived, in another zone pair, or listed twice fails the deploy with a user-facing `InvalidFirewallPolicyOrdering`.
-- **Derived policies aren't in orderings** at all (verified), so they never count as unlisted.
+```ts
+import * as UnifiNetwork from "@alchemy-unifi/network";
+import * as Effect from "effect/Effect";
+
+export const ordering = Effect.gen(function* () {
+	const { HOTSPOT, INTERNAL } = UnifiNetwork.FirewallZone;
+	const block = (name: string) =>
+		({
+			name,
+			enabled: true,
+			action: { type: "BLOCK" },
+			source: { zone: HOTSPOT },
+			destination: { zone: INTERNAL },
+			ipProtocolScope: { ipVersion: "IPV4_AND_IPV6" },
+			loggingEnabled: false,
+		}) satisfies UnifiNetwork.FirewallPolicyProps;
+	const allowDns = yield* UnifiNetwork.FirewallPolicy("guests-dns", {
+		...block("Allow guest DNS"),
+		action: { type: "ALLOW", allowReturnTraffic: true },
+	});
+	const blockRest = yield* UnifiNetwork.FirewallPolicy("guests-block", block("Block guests"));
+	yield* UnifiNetwork.FirewallPolicyOrdering("hotspot-to-internal", {
+		source: HOTSPOT,
+		destination: INTERNAL,
+		beforeSystemDefined: [allowDns, blockRest],
+	});
+});
+```
+
+There's one ordering per zone pair, so an existing one is adopted without `--adopt`, and deleting the resource leaves the order as it is.
+
+## Gotchas
+
+- **Policies the ordering doesn't list are kept,** after the listed ones in their bucket, with a warning (e.g. policies made in the UI). Set `exclusive: true` to fail instead.
+- **Removing a policy and its place in the ordering in one deploy works,** even when exclusive.
+- **A listed policy must be in the pair.** One that's missing, in another pair, or listed twice fails the deploy.
+- **The state store's policy is ignored:** a Gateway → Gateway ordering keeps [`UnifiNetwork.state()`](../state.md)'s policies where they are, even when exclusive.

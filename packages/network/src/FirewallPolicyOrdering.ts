@@ -160,11 +160,36 @@ const describePolicies = Effect.fn(function* (site: Site, ids: ReadonlyArray<str
  *
  * @example
  * ```ts
- * yield* UnifiNetwork.FirewallPolicyOrdering("internal-to-iot", {
- *   source: UnifiNetwork.FirewallZone.INTERNAL,
- *   destination: iotZone,
- *   beforeSystemDefined: [allowHomeAssistant, blockEverythingElse],
- * });
+ * import * as UnifiNetwork from "@alchemy-unifi/network";
+ * import * as Alchemy from "alchemy";
+ * import * as Effect from "effect/Effect";
+ *
+ * export default Alchemy.Stack(
+ * 	"HomeNetwork",
+ * 	{ providers: UnifiNetwork.providers(), state: UnifiNetwork.state() },
+ * 	Effect.gen(function* () {
+ * 		const { INTERNAL } = UnifiNetwork.FirewallZone;
+ * 		const iot = yield* UnifiNetwork.FirewallZone("iot-zone", { name: "IoT" });
+ * 		const policy = { enabled: true, source: { zone: INTERNAL }, destination: { zone: iot }, loggingEnabled: false } as const;
+ * 		const allowHomeAssistant = yield* UnifiNetwork.FirewallPolicy("allow-ha", {
+ * 			...policy,
+ * 			name: "Allow Home Assistant",
+ * 			action: { type: "ALLOW", allowReturnTraffic: true },
+ * 			ipProtocolScope: { ipVersion: "IPV4_AND_IPV6" },
+ * 		});
+ * 		const blockTheRest = yield* UnifiNetwork.FirewallPolicy("block-rest", {
+ * 			...policy,
+ * 			name: "Block the rest",
+ * 			action: { type: "BLOCK" },
+ * 			ipProtocolScope: { ipVersion: "IPV4_AND_IPV6" },
+ * 		});
+ * 		yield* UnifiNetwork.FirewallPolicyOrdering("internal-to-iot", {
+ * 			source: INTERNAL,
+ * 			destination: iot,
+ * 			beforeSystemDefined: [allowHomeAssistant, blockTheRest],
+ * 		});
+ * 	}),
+ * );
  * ```
  */
 export const FirewallPolicyOrdering = Resource<FirewallPolicyOrdering>("UnifiNetwork.FirewallPolicyOrdering");

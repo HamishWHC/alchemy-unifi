@@ -112,11 +112,22 @@ const getList = (siteId: string, trafficMatchingListId: string) =>
  *
  * @example
  * ```ts
- * const haHosts = yield* UnifiNetwork.TrafficMatchingList("ha-hosts", {
- *   type: "IPV4_ADDRESSES",
- *   name: "Home Assistant hosts",
- *   items: [{ type: "IP_ADDRESS", value: "192.168.2.20" }],
- * });
+ * import * as UnifiNetwork from "@alchemy-unifi/network";
+ * import * as Alchemy from "alchemy";
+ * import * as Effect from "effect/Effect";
+ *
+ * export default Alchemy.Stack(
+ * 	"HomeNetwork",
+ * 	{ providers: UnifiNetwork.providers(), state: UnifiNetwork.state() },
+ * 	Effect.gen(function* () {
+ * 		const haHosts = yield* UnifiNetwork.TrafficMatchingList("ha-hosts", {
+ * 			type: "IPV4_ADDRESSES",
+ * 			name: "Home Assistant hosts",
+ * 			items: [{ type: "IP_ADDRESS", value: "192.168.2.20" }],
+ * 		});
+ * 		// Reference it from a policy's filter: { type: "TRAFFIC_MATCHING_LIST", matchOpposite: false, trafficMatchingList: haHosts }
+ * 	}),
+ * );
  * ```
  */
 export const TrafficMatchingList = Resource<TrafficMatchingList>("UnifiNetwork.TrafficMatchingList")({

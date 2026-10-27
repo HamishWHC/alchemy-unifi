@@ -1,5 +1,5 @@
 /**
- * Release helpers for `.github/workflows/release.yml` (see `docs/releasing.md`).
+ * Release helpers for `.github/workflows/release.yml` (see `docs/development/releasing.md`).
  *
  *   node scripts/release.ts nightly          set each public package's version to a nightly of its next version
  *   node scripts/release.ts publish <tag>    pack each public package and publish versions npm doesn't have yet
@@ -80,7 +80,7 @@ const commands: Record<string, (args: ReadonlyArray<string>) => void> = {
 			// Re-read: `nightly` may have changed the version.
 			const manifest: Manifest = JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8"));
 			const versions = publishedVersions(manifest.name);
-			// Trusted publishing only works for packages that exist (docs/releasing.md has the bootstrap).
+			// Trusted publishing only works for packages that exist (docs/development/releasing.md has the bootstrap).
 			if (versions.length === 0) {
 				if (tag === "latest") throw new Error(`${manifest.name} isn't on npm yet: bootstrap it first`);
 				print(`${manifest.name} isn't on npm yet; skipping its ${tag}`);

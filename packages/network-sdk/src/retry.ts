@@ -9,9 +9,14 @@ import { type Policy, throttlingFactory, transientFactory } from "@distilled.clo
  * @example
  * ```ts
  * import * as UnifiNetwork from "@alchemy-unifi/network-sdk";
+ * import * as Effect from "effect/Effect";
  *
- * myEffect.pipe(UnifiNetwork.Retry.transient);
- * Effect.provide(myEffect, Layer.succeed(UnifiNetwork.Retry.Retry, customPolicy));
+ * const sites = UnifiNetwork.getSiteOverviewPage({});
+ * // Retry only transient failures, only throttling, or nothing, for everything below this point.
+ * export const transient = sites.pipe(UnifiNetwork.Retry.transient);
+ * export const throttled = sites.pipe(UnifiNetwork.Retry.throttling);
+ * export const once = sites.pipe(UnifiNetwork.Retry.none);
+ * export const program = Effect.all([transient, throttled, once]);
  * ```
  */
 import * as Context from "effect/Context";

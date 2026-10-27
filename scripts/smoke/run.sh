@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Consumer smoke test: installs the packed packages into a fresh npm project
 # (outside the workspace, as a user would), typechecks `project/`, then
-# deploys and destroys it on a fresh test-controller site. Needs a build and a
+# deploys and destroys it on a fresh test-controller site. The typecheck
+# includes every TypeScript block in the user docs, package READMEs and
+# doc comments. Needs a build and a
 # running test controller. Usage: scripts/smoke/run.sh [--no-deploy]
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -20,8 +22,9 @@ cp -R scripts/smoke/project/. "$work/project"
 cd "$work/project"
 # shellcheck disable=SC2086 # peers is a list
 npm install --no-audit --no-fund --loglevel=error "$work"/*.tgz $peers typescript @types/node
+node "$root/scripts/smoke/examples.ts" examples
 npx tsc -p tsconfig.json
-echo "smoke: typecheck passed"
+echo "smoke: typecheck passed (the stack and every docs example)"
 
 if [ "${1:-}" = "--no-deploy" ]; then exit 0; fi
 cd "$root/packages/test-controller"

@@ -81,13 +81,23 @@ const findExisting = (policies: ReadonlyArray<Sdk.DNSPolicy>, body: Sdk.CreateOr
  *
  * @example
  * ```ts
- * yield* UnifiNetwork.DnsPolicy("home-assistant", {
- *   type: "A_RECORD",
- *   enabled: true,
- *   domain: "ha.home.arpa",
- *   ipv4Address: "192.168.2.20",
- *   ttlSeconds: 300,
- * });
+ * import * as UnifiNetwork from "@alchemy-unifi/network";
+ * import * as Alchemy from "alchemy";
+ * import * as Effect from "effect/Effect";
+ *
+ * export default Alchemy.Stack(
+ * 	"HomeNetwork",
+ * 	{ providers: UnifiNetwork.providers(), state: UnifiNetwork.state() },
+ * 	Effect.gen(function* () {
+ * 		yield* UnifiNetwork.DnsPolicy("home-assistant", {
+ * 			type: "A_RECORD",
+ * 			enabled: true,
+ * 			domain: "ha.home.arpa",
+ * 			ipv4Address: "192.168.2.20",
+ * 			ttlSeconds: 300,
+ * 		});
+ * 	}),
+ * );
  * ```
  */
 export const DnsPolicy = Resource<DnsPolicy>("UnifiNetwork.DnsPolicy");
