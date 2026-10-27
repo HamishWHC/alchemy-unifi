@@ -85,7 +85,7 @@ Then `npx alchemy profile show` connects and shows the Network version. Use othe
 
 ## Docs
 
-[The docs](https://github.com/HamishWHC/alchemy-unifi/tree/main/docs#readme) cover [getting started](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/getting-started.md), [connecting](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/connecting.md), [concepts](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/concepts.md), each resource with examples, and [the state store](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/state.md). The raw SDK is [`@alchemy-unifi/network-sdk`](https://www.npmjs.com/package/@alchemy-unifi/network-sdk).
+[The docs](https://github.com/HamishWHC/alchemy-unifi/tree/main/docs#readme) cover [getting started](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/getting-started.md), [connecting](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/connecting.md), [concepts](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/concepts.md), each resource with examples, and [the state store](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/state.md). The raw SDK is [`@alchemy-unifi/network-sdk`](https://www.npmjs.com/package/@alchemy-unifi/network-sdk). For a real-world config, see [home-network](https://github.com/HamishWHC/home-network): two sites sharing one stack, with zones, networks, Wi-Fi, a full firewall matrix and the state store on the console.
 
 ## License
 

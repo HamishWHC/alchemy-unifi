@@ -7,7 +7,7 @@
 | [`@alchemy-unifi/network`](packages/network)         | Alchemy provider for the UniFi Network application: networks, Wi-Fi, zone-based firewall and DNS policies, plus a state store on the console. Connects locally or via the ui.com cloud connector. |
 | [`@alchemy-unifi/network-sdk`](packages/network-sdk) | The raw Effect SDK for the UniFi Network Integration API, generated with distilled.                                                                                                               |
 
-See [the docs](docs/README.md) to get started.
+See [the docs](docs/README.md) to get started. For a real-world config, see [home-network](https://github.com/HamishWHC/home-network): two sites sharing one stack, with zones, networks, Wi-Fi, a full firewall matrix and the state store on the console.
 
 ## Development
 

@@ -15,6 +15,8 @@
 - [State on the console](state.md): `UnifiNetwork.state()`, which keeps a stack's state on the console it manages.
 - [The SDK](sdk.md): calling the Integration API directly.
 
+For a real-world config, see [home-network](https://github.com/HamishWHC/home-network): two sites sharing one stack, with zones, networks, Wi-Fi, a full firewall matrix and the state store on the console.
+
 ## Resources
 
 | Resource                                                        | What                                                  |
