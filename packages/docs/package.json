@@ -25,9 +25,12 @@
 		"starlight-llms-txt": "^0.12.0"
 	},
 	"devDependencies": {
+		"@alchemy.run/cloudflare": "2.0.0-beta.84",
+		"@alchemy.run/github": "2.0.0-beta.84",
 		"@effect/platform-node": "catalog:",
 		"@total-typescript/ts-reset": "catalog:",
 		"@types/node": "catalog:",
+		"alchemy": "catalog:",
 		"effect": "catalog:",
 		"oxc-parser": "~0.155.0",
 		"typescript": "catalog:"

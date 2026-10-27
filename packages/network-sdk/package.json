@@ -8,7 +8,7 @@
 		"ubiquiti",
 		"unifi"
 	],
-	"homepage": "https://github.com/HamishWHC/alchemy-unifi/tree/main/packages/network-sdk#readme",
+	"homepage": "https://alchemy-unifi.hamishwhc.com/sdk/calling-the-api/",
 	"bugs": {
 		"url": "https://github.com/HamishWHC/alchemy-unifi/issues"
 	},

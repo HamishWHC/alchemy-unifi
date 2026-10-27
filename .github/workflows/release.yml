@@ -1,12 +1,16 @@
 # Publishes to npm with trusted publishing (OIDC, no tokens) and provenance.
 #
 # - Run by hand on main: applies the pending change intents, commits, tags and pushes the
-#   release, publishes it under `latest` and creates the GitHub releases. With no pending
-#   intents, it only publishes and releases current versions that are missing (to finish a
-#   run that failed after pushing).
+#   release, publishes it under `latest`, creates the GitHub releases and deploys the docs to
+#   `prod`. With no pending intents, it only publishes and releases current versions that are
+#   missing, and redeploys the docs (to finish a run that failed after pushing).
 # - Called by ci.yml with `nightly: true` once CI passes on main: applies the intents without
-#   committing, so the nightly carries the changelog so far, and publishes a nightly of each
-#   package under `nightly`.
+#   committing, so the nightly carries the changelog so far, publishes a nightly of each
+#   package under `nightly`, and deploys the docs to `nightly`.
+#
+# The packages are packed once, and the docs are built from those tarballs. Nothing is pushed,
+# published or deployed unless both builds succeed, and npm gets exactly the tarballs the docs
+# describe, before the docs go live.
 #
 # npm checks the calling workflow's filename, so it trusts both release.yml and ci.yml, each
 # only from the `npm` environment.
@@ -26,7 +30,7 @@ jobs:
   release:
     name: ${{ inputs.nightly && 'nightly' || 'release' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     # npm only accepts OIDC tokens from this environment, and GitHub only lets main deploy to it,
     # so a branch with an edited workflow can't publish.
     environment: npm
@@ -80,6 +84,29 @@ jobs:
         if: ${{ inputs.nightly }}
         run: pnpm --filter "./packages/network*" version -r prerelease --preid "nightly.$(date -u +%Y%m%d%H%M%S).g$(git rev-parse --short=7 HEAD)" --no-git-checks
 
+      - name: Build
+        run: pnpm build
+
+      - name: Pack
+        run: |
+          mkdir -p "$RUNNER_TEMP/packed"
+          for package in network-sdk network; do
+            (cd "packages/$package" && pnpm pack --pack-destination "$RUNNER_TEMP/packed")
+          done
+
+      - name: Upload the packed packages
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: packed-${{ inputs.nightly && 'nightly' || 'release' }}
+          path: ${{ runner.temp }}/packed/*.tgz
+          if-no-files-found: error
+
+      - name: Build the docs from the packed provider
+        run: |
+          mkdir -p "$RUNNER_TEMP/network"
+          tar -xzf "$RUNNER_TEMP"/packed/alchemy-unifi-network-[0-9]*.tgz -C "$RUNNER_TEMP/network"
+          NETWORK_PACKAGE_DIR="$RUNNER_TEMP/network/package" pnpm --filter @alchemy-unifi/docs exec sh -c 'node scripts/generate-reference.ts && astro build'
+
       - name: Commit and tag
         id: tag
         if: ${{ !inputs.nightly }}
@@ -106,12 +133,20 @@ jobs:
           read -ra tags <<< "$TAGS"
           git push --atomic origin HEAD:main "${tags[@]}"
 
-      - name: Build
-        run: pnpm build
-
-      # Publishes every public package whose version isn't on npm yet.
+      # The packed tarballs, SDK first, skipping versions npm already has.
       - name: Publish
-        run: pnpm publish -r --provenance --no-git-checks --tag ${{ inputs.nightly && 'nightly' || 'latest' }}
+        env:
+          TAG: ${{ inputs.nightly && 'nightly' || 'latest' }}
+        run: |
+          for package in network-sdk network; do
+            tarball=$(ls "$RUNNER_TEMP"/packed/alchemy-unifi-"$package"-[0-9]*.tgz)
+            spec=$(tar -xOzf "$tarball" package/package.json | jq -r '"\(.name)@\(.version)"')
+            if npm view "$spec" version >/dev/null 2>&1; then
+              echo "::notice::$spec is already on npm."
+              continue
+            fi
+            pnpm publish "$tarball" --provenance --no-git-checks --tag "$TAG"
+          done
 
       # One per public package whose current version is tagged but has no release yet, with the
       # newest section of its changelog as notes.
@@ -128,3 +163,12 @@ jobs:
             awk '/^## /{n++; next} n==1' "$(dirname "$manifest")/CHANGELOG.md" | sed '/./,$!d' > "$RUNNER_TEMP/notes.md"
             gh release create "$tag" --title "$tag" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
           done
+
+      # After npm has the packages, so the docs never describe a version it doesn't have.
+      - name: Deploy the docs
+        working-directory: packages/docs
+        run: pnpm exec alchemy deploy --stage ${{ inputs.nightly && 'nightly' || 'prod' }} --yes
+        env:
+          DOCS_PREBUILT: "1"
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

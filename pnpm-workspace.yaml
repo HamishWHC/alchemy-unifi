@@ -31,6 +31,8 @@ allowBuilds:
   esbuild: true
   lefthook: true
   msgpackr-extract: false
+  # Only `alchemy dev` runs Workers locally; deploying the docs doesn't need the binary.
+  workerd: false
 minimumReleaseAgeExclude:
   - "@effect/tsgo-darwin-arm64@0.56.1"
   - "@effect/tsgo-darwin-x64@0.56.1"

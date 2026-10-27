@@ -5,6 +5,7 @@
 # includes every TypeScript block in the user docs, package READMEs and
 # doc comments. It then does the same for each part of the docs tutorial,
 # deploying the parts in order. Needs a build and a running test controller.
+# Set PACKED_DIR to test tarballs already packed (as CI does) instead of packing.
 # Usage: scripts/smoke/run.sh [--no-deploy]
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -12,9 +13,13 @@ root="$PWD"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-for package in network-sdk network; do
-	(cd "packages/$package" && pnpm pack --pack-destination "$work" >/dev/null)
-done
+if [ -n "${PACKED_DIR:-}" ]; then
+	cp "$PACKED_DIR"/*.tgz "$work/"
+else
+	for package in network-sdk network; do
+		(cd "packages/$package" && pnpm pack --pack-destination "$work" >/dev/null)
+	done
+fi
 
 # The provider's peers, at the ranges it declares.
 peers="$(node -p 'Object.entries(require("./packages/network/package.json").peerDependencies).map(([n, r]) => `${n}@${r}`).join(" ")')"

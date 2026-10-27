@@ -1,7 +1,8 @@
 /**
  * Generates the resource reference (`src/content/docs/reference/`) from the
  * JSDoc in `@alchemy-unifi/network`'s published declarations, so the pages
- * describe the package as installed (in CI, the packed tarball).
+ * describe the package as packed. It reads the installed workspace package,
+ * or `NETWORK_PACKAGE_DIR` (an unpacked tarball) when set, as CI does.
  *
  * A declaration tagged `@resource` gets a page. Its JSDoc reads like
  * Alchemy's: a summary, then `### Section` headings, each with prose and
@@ -101,7 +102,13 @@ const firstSentence = (summary: string) => {
 	return (/^(.+?\.)(\s|$)/.exec(paragraph)?.[1] ?? paragraph).replaceAll("`", "");
 };
 
-const renderPage = (name: string, doc: Doc, pages: ReadonlySet<string>, sourceFile: string | undefined) => {
+const renderPage = (
+	name: string,
+	doc: Doc,
+	pages: ReadonlySet<string>,
+	version: string,
+	sourceFile: string | undefined,
+) => {
 	const parts = [
 		"---",
 		`title: ${yamlString(name)}`,
@@ -112,7 +119,8 @@ const renderPage = (name: string, doc: Doc, pages: ReadonlySet<string>, sourceFi
 		"<!-- Generated from the package's JSDoc by scripts/generate-reference.ts. Don't edit. -->",
 		"",
 	];
-	if (sourceFile !== undefined) parts.push(`> **Source:** [\`${sourceFile}\`](${SOURCE_URL}/${sourceFile})`, "");
+	const source = sourceFile === undefined ? "" : ` · **Source:** [\`${sourceFile}\`](${SOURCE_URL}/${sourceFile})`;
+	parts.push(`> **Package:** \`${PACKAGE}@${version}\`${source}`, "");
 	if (doc.summary) parts.push(doc.summary, "");
 	for (const section of doc.sections) {
 		parts.push(`## ${section.title}`, "");
@@ -157,13 +165,16 @@ const declarations = (file: string, text: string) => {
 	return { exported, docs };
 };
 
-const Manifest = Schema.Struct({ exports: Schema.Struct({ ".": Schema.Struct({ types: Schema.String }) }) });
+const Manifest = Schema.Struct({
+	version: Schema.String,
+	exports: Schema.Struct({ ".": Schema.Struct({ types: Schema.String }) }),
+});
 
 const program = Effect.gen(function* () {
 	const fs = yield* FileSystem.FileSystem;
 	const path = yield* Path.Path;
 	const root = path.resolve(import.meta.dirname, "..");
-	const packageDir = path.join(root, "node_modules", PACKAGE);
+	const packageDir = process.env["NETWORK_PACKAGE_DIR"] ?? path.join(root, "node_modules", PACKAGE);
 	const manifest = yield* Schema.decodeUnknownEffect(Manifest)(
 		JSON.parse(yield* fs.readFileString(path.join(packageDir, "package.json"))),
 	);
@@ -189,10 +200,12 @@ const program = Effect.gen(function* () {
 		const hasSource = yield* fs.exists(path.join(packageDir, "src", sourceFile));
 		yield* fs.writeFileString(
 			path.join(outDir, `${slug(name)}.md`),
-			renderPage(name, doc, names, hasSource ? sourceFile : undefined),
+			renderPage(name, doc, names, manifest.version, hasSource ? sourceFile : undefined),
 		);
 	}
-	yield* Console.log(`Generated ${resources.size} reference pages: ${[...names].join(", ")}`);
+	yield* Console.log(
+		`Generated ${resources.size} reference pages from ${PACKAGE}@${manifest.version}: ${[...names].join(", ")}`,
+	);
 });
 
 program.pipe(Effect.provide(NodeServices.layer), NodeRuntime.runMain);
