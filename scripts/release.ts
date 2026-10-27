@@ -19,7 +19,9 @@ interface Manifest {
 const root = path.resolve(import.meta.dirname, "..");
 const print = (line: string) => process.stdout.write(`${line}\n`);
 const run = (command: string, args: ReadonlyArray<string>, cwd = root) =>
-	execFileSync(command, args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] });
+	execFileSync(command, args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+// npm refuses to run inside the repo, whose `devEngines` asks for pnpm.
+const npm = (args: ReadonlyArray<string>) => run("npm", args, os.tmpdir());
 
 const packages = fs
 	.readdirSync(path.join(root, "packages"))
@@ -45,13 +47,15 @@ const bumpPatch = (version: string) => {
 	return `${major}.${minor}.${(patch ?? 0) + 1}`;
 };
 
-/** The versions npm has of `name`; empty when the package doesn't exist there. */
+/** The versions npm has of `name`; empty when the package doesn't exist there. Other failures throw. */
 const publishedVersions = (name: string): ReadonlyArray<string> => {
 	try {
-		const versions: unknown = JSON.parse(run("npm", ["view", name, "versions", "--json"]));
+		const versions: unknown = JSON.parse(npm(["view", name, "versions", "--json"]));
 		return Array.isArray(versions) ? versions.filter((v) => typeof v === "string") : [String(versions)];
-	} catch {
-		return [];
+	} catch (error) {
+		const output = error instanceof Error && "stdout" in error ? String(error.stdout) : "";
+		if (output.includes("E404")) return [];
+		throw error;
 	}
 };
 
@@ -88,7 +92,7 @@ const commands: Record<string, (args: ReadonlyArray<string>) => void> = {
 			}
 			// pnpm packs (rewriting `workspace:` ranges); npm publishes, as it handles trusted publishing.
 			const tarball = run("pnpm", ["pack", "--pack-destination", out], dir).trim().split("\n").at(-1) ?? "";
-			run("npm", ["publish", path.resolve(dir, tarball), "--provenance", "--access", "public", "--tag", tag]);
+			npm(["publish", path.resolve(dir, tarball), "--provenance", "--access", "public", "--tag", tag]);
 			print(`published ${manifest.name}@${manifest.version} (${tag})`);
 		}
 	},
