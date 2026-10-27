@@ -28,7 +28,7 @@ Things you must know that aren't obvious from the code.
 - **Support only the latest stable UniFi Network release.**
 - **Node only.** Bun is not a target.
 - **Two packages per UniFi application:** the provider (`network`) and its raw distilled SDK (`network-sdk`), laid out like the `@distilled.cloud/*` packages on npm. Site Manager and Protect follow the same pattern later.
-- **Releases** use pnpm's built-in versioning (`pnpm change`, `pnpm version -r`), not changesets.
+- **Releases** use pnpm's built-in versioning (`pnpm change`, `pnpm version -r`), not changesets. Record **one change intent per package**, with a summary written for that package's users (it's that package's changelog entry): a change to both packages gets two intents, never one naming both (see `docs/development/releasing.md`).
 - **Bump `typescript`, `@effect/tsgo` and `oxlint` together.** `@effect/tsgo` supports specific TS and oxlint versions.
 - **Fix lint errors in the code; don't disable rules.**
 - **Testing infrastructure:** the user does not want VM-based setups. Keep the test controller Docker-only.

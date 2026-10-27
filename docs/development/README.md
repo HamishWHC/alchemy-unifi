@@ -16,7 +16,7 @@ How the packages work inside, and how to work on them. The user docs are one lev
 
 - **Setup:** Node 22 or later, pnpm 12 (`devEngines` fetches it), and Docker for the test controller. `pnpm install` at the root.
 - **Checks:** `pnpm check` (typecheck, lint, format), `pnpm turbo run test:unit`, and `pnpm test` for everything, which starts the test controller. Never test against a real console.
-- **Record a change intent** for every user-visible change: `pnpm change` (see [releasing.md](releasing.md)).
+- **Record a change intent per package** for every user-visible change, each summarised for that package's users: `pnpm change <package> --bump <patch|minor|major> --summary "…"` (see [releasing.md](releasing.md)).
 - **Docs change with the code.** User-facing behaviour and gotchas go in the user docs, with an example that typechecks: the smoke test compiles every TypeScript block in `docs/*.md`, `docs/resources/*.md`, the package READMEs and the packages' doc comments against the packed packages. So each block is a complete module, imports included.
 - `AGENTS.md` at the root lists the rules that are easy to break (generated code, the test controller's Java agent, `withConnection`).
 

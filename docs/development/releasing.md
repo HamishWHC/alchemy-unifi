@@ -4,22 +4,21 @@
 
 ## Day to day
 
-- **Record a change intent** with each user-visible change, and commit it with the change:
+- **Record a change intent per package** with each user-visible change, and commit it with the change. One intent names one package, and its summary is written for that package's users, because it becomes that package's changelog entry and GitHub release notes. A change touching both packages gets two intents:
 
     ```sh
-    pnpm change @alchemy-unifi/network --bump patch --summary "Fix …"
+    pnpm change @alchemy-unifi/network-sdk --bump minor --summary "Add the ACL rule operations' typed errors."
+    pnpm change @alchemy-unifi/network --bump minor --summary "Add \`AclRule\`."
     ```
 
-    It writes `.changeset/<name>.md`. `pnpm change status` shows what the pending intents would release.
+    Each writes `.changeset/<name>.md`. `pnpm change status` shows what the pending intents would release. A package that only picks up a dependency's new version (the provider after an SDK release) gets an "Updated dependencies" entry automatically.
 
 - **Every push to `main` publishes a nightly** of each package under the `nightly` dist-tag: `<next version>-nightly.<UTC timestamp>.g<sha>`, where the next version is what the pending intents produce (else the next patch). Each nightly of the provider depends on the SDK nightly from the same commit. Install with `npm install @alchemy-unifi/network@nightly`.
-- **To release**, run the Release workflow by hand (Actions → Release → Run workflow, on `main`), or `gh workflow run release.yml`. It:
-    1. fails if there are no pending intents;
-    2. runs `pnpm version -r`, which bumps the packages the intents name (and their dependents), prepends each one's `CHANGELOG.md` (`versioning.changelog.storage: repository`), and deletes the consumed intents;
-    3. builds, and publishes versions npm doesn't have yet under `latest`;
-    4. commits "Release …", tags `<package>@<version>`, pushes to `main`, and creates a GitHub release per tag from its changelog section.
+- **To release**, run the Release workflow by hand on `main` (Actions → Release → Run workflow), or `gh workflow run release.yml`. It runs twice:
+    1. **On `main`:** fails if there are no pending intents; runs `pnpm version -r`, which bumps the packages the intents name (and their dependents), prepends each one's `CHANGELOG.md` (`versioning.changelog.storage: repository`) and deletes the consumed intents; formats those files; commits "Release …", tags `<package>@<version>`, and pushes both atomically to `main` (it needs to be allowed past `main`'s ruleset). Nothing is published yet, so a refused push costs nothing. It then starts the workflow again on the new tag.
+    2. **On the tag:** builds, publishes versions npm doesn't have yet under `latest`, and creates a GitHub release per tag on that commit from its changelog section. Publishing from the tagged commit is what makes each version's provenance name the commit that contains it: provenance records the commit a run started from, not commits made during it. If it fails, re-run it: it skips versions already on npm and tags that already have releases.
 
-    It publishes before pushing, so a failed run leaves `main` untouched, and a re-run skips what was already published. A push by the workflow's own token doesn't trigger workflows, so the release commit publishes no nightly.
+    The workflow's own pushes don't trigger workflows (its dispatches do), so the release commit publishes no nightly.
 
 - **Publishing** packs with pnpm, which rewrites `workspace:` ranges, and publishes the tarball with npm, because npm handles the OIDC exchange (npm 11.5.1 or later).
 

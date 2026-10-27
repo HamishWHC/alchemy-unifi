@@ -3,7 +3,8 @@
  *
  *   node scripts/release.ts nightly          set each public package's version to a nightly of its next version
  *   node scripts/release.ts publish <tag>    pack each public package and publish versions npm doesn't have yet
- *   node scripts/release.ts notes            print tags and release notes for packages whose version differs from HEAD's, as JSON
+ *   node scripts/release.ts tags             print `<package>@<version>` for each package whose version differs from HEAD's (a release about to be committed)
+ *   node scripts/release.ts releases         create a GitHub release, from its changelog section, for each package tag on HEAD that has none
  */
 import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
@@ -96,27 +97,41 @@ const commands: Record<string, (args: ReadonlyArray<string>) => void> = {
 			print(`published ${manifest.name}@${manifest.version} (${tag})`);
 		}
 	},
-	notes: () => {
-		const released = packages.filter(({ file, manifest }) => {
+	tags: () => {
+		for (const { file, manifest } of packages) {
 			const before: Manifest = JSON.parse(run("git", ["show", `HEAD:${path.relative(root, file)}`]));
-			return before.version !== manifest.version;
-		});
-		const releases = released.map(({ dir, manifest }) => {
+			if (before.version !== manifest.version) print(`${manifest.name}@${manifest.version}`);
+		}
+	},
+	releases: () => {
+		const tags = new Set(run("git", ["tag", "--points-at", "HEAD"]).split("\n"));
+		const out = fs.mkdtempSync(path.join(os.tmpdir(), "alchemy-unifi-notes-"));
+		for (const { dir, manifest } of packages) {
+			const tag = `${manifest.name}@${manifest.version}`;
+			if (!tags.has(tag)) continue;
+			try {
+				run("gh", ["release", "view", tag]);
+				print(`${tag} already has a GitHub release`);
+				continue;
+			} catch {
+				// No release yet.
+			}
 			const file = path.join(dir, "CHANGELOG.md");
 			const changelog = fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
 			// The newest section: from the first `## ` heading to the next.
 			const [, section = ""] = changelog.split(/^## /mu);
-			const body = section.slice(section.indexOf("\n") + 1).trim();
-			return { tag: `${manifest.name}@${manifest.version}`, body };
-		});
-		print(JSON.stringify(releases));
+			const notes = path.join(out, "notes.md");
+			fs.writeFileSync(notes, section.slice(section.indexOf("\n") + 1).trim());
+			run("gh", ["release", "create", tag, "--title", tag, "--notes-file", notes, "--verify-tag"]);
+			print(`created the GitHub release ${tag}`);
+		}
 	},
 };
 
 const [name = "", ...rest] = process.argv.slice(2);
 const command = commands[name];
 if (command === undefined) {
-	process.stderr.write("usage: node scripts/release.ts nightly | publish <tag> | notes\n");
+	process.stderr.write("usage: node scripts/release.ts nightly | publish <tag> | tags | releases\n");
 	process.exitCode = 1;
 } else {
 	command(rest);
