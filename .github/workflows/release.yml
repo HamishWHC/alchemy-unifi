@@ -72,6 +72,8 @@ jobs:
           fi
           pnpm change status
           pnpm version -r
+          # pnpm writes changelogs and the ledger unformatted; format what it changed, as a commit would.
+          { git diff --name-only --diff-filter=AM; git ls-files --others --exclude-standard; } | grep -E '\.(md|json|ya?ml)$' | xargs --no-run-if-empty ./node_modules/.bin/oxfmt
 
       - run: pnpm build
       # Publish before pushing: a failed publish leaves main untouched, and a re-run skips versions already on npm.
@@ -79,6 +81,9 @@ jobs:
         run: node scripts/release.ts publish latest
 
       - name: Commit and tag
+        env:
+          # The release commit only holds generated files, already formatted above; skip the hooks.
+          LEFTHOOK: "0"
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
