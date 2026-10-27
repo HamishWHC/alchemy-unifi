@@ -1,0 +1,60 @@
+---
+title: Traffic-matching lists
+description: Name a list of ports or addresses once and use it in several policies.
+---
+
+A [`TrafficMatchingList`](/reference/trafficmatchinglist/) is a named list of ports, IPv4 addresses or IPv6 addresses that policy filters reference.
+
+## Create a list
+
+```ts
+// src/lists.ts
+import * as UnifiNetwork from "@alchemy-unifi/network";
+import * as Effect from "effect/Effect";
+
+export const labServers = UnifiNetwork.TrafficMatchingList("lab-servers", {
+	type: "IPV4_ADDRESSES",
+	name: "Lab servers",
+	items: [
+		{ type: "IP_ADDRESS", value: "192.168.50.10" },
+		{ type: "IP_ADDRESS_RANGE", start: "192.168.50.20", stop: "192.168.50.29" },
+	],
+}).pipe(Effect.asVoid);
+```
+
+## Use it in a policy
+
+Pass the list as the filter's `trafficMatchingList`:
+
+```ts
+// src/firewall.ts
+import * as UnifiNetwork from "@alchemy-unifi/network";
+import * as Effect from "effect/Effect";
+
+export const firewall = Effect.gen(function* () {
+	const servers = yield* UnifiNetwork.TrafficMatchingList("lab-servers", {
+		type: "IPV4_ADDRESSES",
+		name: "Lab servers",
+		items: [{ type: "IP_ADDRESS", value: "192.168.50.10" }],
+	});
+	yield* UnifiNetwork.FirewallPolicy("internal-to-lab-servers", {
+		name: "Allow Internal to the lab servers",
+		enabled: true,
+		action: { type: "ALLOW", allowReturnTraffic: true },
+		source: { zone: UnifiNetwork.FirewallZone.INTERNAL },
+		destination: {
+			zone: UnifiNetwork.FirewallZone.INTERNAL,
+			trafficFilter: {
+				type: "IP_ADDRESS",
+				ipAddressFilter: { type: "TRAFFIC_MATCHING_LIST", matchOpposite: false, trafficMatchingList: servers },
+			},
+		},
+		ipProtocolScope: { ipVersion: "IPV4_AND_IPV6" },
+		loggingEnabled: false,
+	});
+});
+```
+
+## Share MAC addresses
+
+There are no MAC lists. Keep MAC addresses in a constant in your code, and use it in each policy's MAC filter.

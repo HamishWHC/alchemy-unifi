@@ -1,0 +1,28 @@
+---
+title: Changes made in the UI
+description: Know what a deploy does to changes made in the UniFi UI, and find them with drift detection.
+---
+
+import PackageManagers from "~/components/PackageManagers.astro";
+
+**Props are the whole truth.** Every update sends the complete object, and an optional prop you leave out means "the console's default", never "whatever's there now".
+
+## Updates undo UI changes
+
+A change made in the UI, to any field of a managed object, is undone by the next update of that object. Objects the stack doesn't manage are left alone.
+
+## Find UI changes with drift detection
+
+`alchemy deploy` only updates objects whose props changed. To find and undo changes made in the UI, run:
+
+<PackageManagers run="alchemy drift --stage home" />
+
+Or deploy with `--detect-drift`.
+
+## Watch for UI settings that rewrite managed objects
+
+Some UI settings are views of fields the provider manages, so changing them in the UI rewrites managed objects. The reference points these out, e.g. the gateway mDNS proxy on [`Network`](/reference/network/#mdns).
+
+## Objects UniFi generates
+
+UniFi creates some firewall policies itself: system policies between zones, and derived policies (e.g. from UI objects). The provider never lists, adopts, changes or orders derived policies, and system policies can't be edited. Your policies sit before or after the system ones; see [Ordering](/firewall/ordering/).

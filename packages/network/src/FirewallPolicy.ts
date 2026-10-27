@@ -291,17 +291,24 @@ const findByName = Effect.fn(function* (
 });
 
 /**
- * A zone-based firewall policy: allow, block or reject traffic from one
- * zone to another, optionally narrowed by traffic filters. Changing its
- * zones updates it in place and moves it to the new zone pair's ordering
- * (see `FirewallPolicyOrdering`).
+ * A zone-based firewall policy: an `action` (`ALLOW`, `BLOCK` or `REJECT`)
+ * for traffic from a `source` zone to a `destination` zone, optionally
+ * narrowed by traffic filters, protocol, connection state, IPsec and a
+ * schedule.
  *
- * Existing user-defined policies are adopted with `--adopt` by name and zone
- * pair (names aren't unique, so several matches adopt nothing). Policies
- * UniFi derives, e.g. from UI Objects, are invisible: never listed, adopted
- * or ordered.
+ * Existing policies you made are adopted with `--adopt` by name and zone
+ * pair. Policies UniFi creates (system policies, and ones derived from UI
+ * objects) are never listed, adopted, changed or ordered.
  *
- * @example
+ * :::caution
+ * Order matters, and new policies go last in their zone pair's "before
+ * system" bucket. Use `FirewallPolicyOrdering` to place them.
+ * :::
+ *
+ * ### Creating a policy
+ *
+ * **Example:** Block a zone from Internal
+ *
  * ```ts
  * import * as UnifiNetwork from "@alchemy-unifi/network";
  * import * as Alchemy from "alchemy";
@@ -324,6 +331,79 @@ const findByName = Effect.fn(function* (
  * 	}),
  * );
  * ```
+ *
+ * ### Traffic filters
+ *
+ * `source` and `destination` each take a `trafficFilter`: networks, IP
+ * addresses (inline or a `TrafficMatchingList`), ports, MAC addresses and
+ * more. `ipProtocolScope` narrows the protocol.
+ *
+ * **Example:** Let guests print, on the printers' IPP port only
+ *
+ * ```ts
+ * import * as UnifiNetwork from "@alchemy-unifi/network";
+ * import * as Effect from "effect/Effect";
+ *
+ * export const allowPrinting = Effect.gen(function* () {
+ * 	const { HOTSPOT, INTERNAL } = UnifiNetwork.FirewallZone;
+ * 	const guests = yield* UnifiNetwork.Network.lookup({ name: "Guests" });
+ * 	const printers = yield* UnifiNetwork.TrafficMatchingList.lookup({ name: "Printers" });
+ * 	yield* UnifiNetwork.FirewallPolicy("guests-print", {
+ * 		name: "Allow guests to print",
+ * 		enabled: true,
+ * 		action: { type: "ALLOW", allowReturnTraffic: true },
+ * 		source: {
+ * 			zone: HOTSPOT,
+ * 			trafficFilter: { type: "NETWORK", networkFilter: { matchOpposite: false, networks: [guests] } },
+ * 		},
+ * 		destination: {
+ * 			zone: INTERNAL,
+ * 			trafficFilter: {
+ * 				type: "IP_ADDRESS",
+ * 				ipAddressFilter: { type: "TRAFFIC_MATCHING_LIST", matchOpposite: false, trafficMatchingList: printers },
+ * 				portFilter: { type: "PORTS", matchOpposite: false, items: [{ type: "PORT_NUMBER", value: 631 }] },
+ * 			},
+ * 		},
+ * 		ipProtocolScope: {
+ * 			ipVersion: "IPV4_AND_IPV6",
+ * 			protocolFilter: { type: "PRESET", preset: { name: "TCP_UDP" } },
+ * 		},
+ * 		loggingEnabled: false,
+ * 	});
+ * });
+ * ```
+ *
+ * :::caution
+ * Network filters only work on gateway networks (`management: "GATEWAY"`),
+ * in the source and the destination alike: the gateway never sees an
+ * unmanaged network's traffic. The console rejects one with a bare
+ * "Unexpected error".
+ * :::
+ *
+ * :::caution
+ * Optional criteria you leave out are removed, like every optional prop.
+ * :::
+ *
+ * Some IDs are still raw: VPN servers, site-to-site tunnels and DPI
+ * applications in filters.
+ *
+ * ### Changing zones
+ *
+ * Changing `source` or `destination` updates the policy in place, and moves
+ * it to the end of the new zone pair. List it in that pair's
+ * `FirewallPolicyOrdering`.
+ *
+ * ### Looking up a policy
+ *
+ * `FirewallPolicy.lookup({ name, source?, destination? })` finds a policy the
+ * stack uses but doesn't manage. Give the zones when the name isn't unique.
+ *
+ * :::caution
+ * Names aren't unique, even within a zone pair, so adoption and lookups
+ * refuse several matches.
+ * :::
+ *
+ * @resource
  */
 export const FirewallPolicy = Resource<FirewallPolicy>("UnifiNetwork.FirewallPolicy")({
 	/**

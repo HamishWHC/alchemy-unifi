@@ -1,0 +1,34 @@
+---
+title: Adoption
+description: Take over networks, Wi-Fi and policies that already exist on your console.
+---
+
+import PackageManagers from "~/components/PackageManagers.astro";
+
+Most consoles already have networks, Wi-Fi and policies. Declare them as resources, then let Alchemy adopt them instead of creating duplicates. [Part 2 of the tutorial](/tutorial/part-2/) walks through it with the default network.
+
+## Declare what exists
+
+Give each resource the same natural key as the object on the console: the name for zones, lists and Wi-Fi, the VLAN ID for networks, the name and zone pair for policies, the type and domain for DNS records. Each [reference page](/reference/network/) says which.
+
+Copy the object's current settings into the props. Props are [authoritative](/concepts/changes-made-in-the-ui/), so a prop you leave out gets its default, and the deploy changes the live object.
+
+## Check the plan
+
+<PackageManagers run="alchemy plan --stage home --adopt" />
+
+The plan lists what would be adopted, updated and created. An adopted object with an update means your props differ from the console: fix them until the plan shows only adoptions.
+
+## Adopt
+
+<PackageManagers run="alchemy deploy --stage home --adopt" />
+
+Without `--adopt`, a resource whose object already exists fails the deploy rather than being taken over silently.
+
+:::note
+When several objects match a natural key (some, like policy names, needn't be unique), nothing is adopted, and the deploy creates a new one.
+:::
+
+## Keep what you adopt
+
+Add `RemovalPolicy.retain()` to anything you'd want to keep if you remove it from the stack or destroy the stack, like the network your own devices are on. The default network (VLAN 1) is never deleted either way.

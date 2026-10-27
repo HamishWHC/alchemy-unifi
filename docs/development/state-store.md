@@ -1,6 +1,6 @@
 # State store internals
 
-The user-facing page is [state.md](../state.md).
+The user-facing page is [State on the console](../../packages/docs/src/content/docs/state/state-on-the-console.mdx).
 
 `UnifiNetwork.state()` is `src/State.ts`. `makeUnifiState` implements Alchemy's `StateService` over a small `StateBackend` interface (list, create, update and delete state policies; create, find, check and delete lock lists). `state()` builds the console backend from the provider's credentials, connection and read-cache layers. The unit tests (`test/State.test.ts`) run the store over an in-memory fake backend, which makes batching and lock edge cases deterministic (`TestClock` drives renewal and expiry). The controller tests (`test/controller/State.test.ts`) cover the real backend, and a deploy and destroy end to end.
 

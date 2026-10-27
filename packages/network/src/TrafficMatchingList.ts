@@ -105,12 +105,16 @@ const getList = (siteId: string, trafficMatchingListId: string) =>
 	listTrafficMatchingLists(siteId).pipe(Effect.map((lists) => lists.find((l) => l.id === trafficMatchingListId)));
 
 /**
- * A named list of IPv4 addresses, IPv6 addresses or ports, which firewall
- * policies reference instead of repeating values inline. Names are unique
- * per site, so existing lists are adopted by name with `--adopt`. Changing
- * `type` updates the list in place.
+ * A named list of ports, IPv4 addresses or IPv6 addresses, which
+ * `FirewallPolicy` filters reference instead of repeating values inline.
+ * `type` is `"PORTS"`, `"IPV4_ADDRESSES"` or `"IPV6_ADDRESSES"`. Names are
+ * unique per site, so existing lists are adopted by name with `--adopt`.
+ * Changing `type` updates the list in place.
  *
- * @example
+ * ### Creating a list
+ *
+ * **Example:** Port and address lists
+ *
  * ```ts
  * import * as UnifiNetwork from "@alchemy-unifi/network";
  * import * as Alchemy from "alchemy";
@@ -120,15 +124,81 @@ const getList = (siteId: string, trafficMatchingListId: string) =>
  * 	"HomeNetwork",
  * 	{ providers: UnifiNetwork.providers(), state: UnifiNetwork.state() },
  * 	Effect.gen(function* () {
- * 		const haHosts = yield* UnifiNetwork.TrafficMatchingList("ha-hosts", {
- * 			type: "IPV4_ADDRESSES",
- * 			name: "Home Assistant hosts",
- * 			items: [{ type: "IP_ADDRESS", value: "192.168.2.20" }],
+ * 		yield* UnifiNetwork.TrafficMatchingList("web-ports", {
+ * 			type: "PORTS",
+ * 			name: "Web",
+ * 			items: [
+ * 				{ type: "PORT_NUMBER", value: 443 },
+ * 				{ type: "PORT_NUMBER_RANGE", start: 8000, stop: 8099 },
+ * 			],
  * 		});
- * 		// Reference it from a policy's filter: { type: "TRAFFIC_MATCHING_LIST", matchOpposite: false, trafficMatchingList: haHosts }
+ * 		yield* UnifiNetwork.TrafficMatchingList("servers", {
+ * 			type: "IPV4_ADDRESSES",
+ * 			name: "Servers",
+ * 			items: [
+ * 				{ type: "IP_ADDRESS", value: "192.168.10.5" },
+ * 				{ type: "IP_ADDRESS_RANGE", start: "192.168.10.20", stop: "192.168.10.29" },
+ * 				{ type: "SUBNET", value: "192.168.11.0/24" },
+ * 			],
+ * 		});
  * 	}),
  * );
  * ```
+ *
+ * :::note
+ * There are no MAC lists. Firewall policies match MAC addresses inline, so
+ * share them as a constant in your code instead.
+ * :::
+ *
+ * ### Using a list in a policy
+ *
+ * **Example:** A policy's address filter
+ *
+ * ```ts
+ * import * as UnifiNetwork from "@alchemy-unifi/network";
+ * import * as Effect from "effect/Effect";
+ *
+ * export const allowServers = Effect.gen(function* () {
+ * 	const servers = yield* UnifiNetwork.TrafficMatchingList("servers", {
+ * 		type: "IPV4_ADDRESSES",
+ * 		name: "Servers",
+ * 		items: [{ type: "IP_ADDRESS", value: "192.168.10.5" }],
+ * 	});
+ * 	yield* UnifiNetwork.FirewallPolicy("guests-to-servers", {
+ * 		name: "Allow guests to the servers",
+ * 		enabled: true,
+ * 		action: { type: "ALLOW", allowReturnTraffic: true },
+ * 		source: { zone: UnifiNetwork.FirewallZone.HOTSPOT },
+ * 		destination: {
+ * 			zone: UnifiNetwork.FirewallZone.INTERNAL,
+ * 			trafficFilter: {
+ * 				type: "IP_ADDRESS",
+ * 				ipAddressFilter: { type: "TRAFFIC_MATCHING_LIST", matchOpposite: false, trafficMatchingList: servers },
+ * 			},
+ * 		},
+ * 		ipProtocolScope: { ipVersion: "IPV4_AND_IPV6" },
+ * 		loggingEnabled: false,
+ * 	});
+ * });
+ * ```
+ *
+ * ### Looking up a list
+ *
+ * `TrafficMatchingList.lookup({ name })` finds a list the stack uses but
+ * doesn't manage.
+ *
+ * ### Deleting a list
+ *
+ * :::caution
+ * A list something outside the stack uses (e.g. a policy made in the UI)
+ * can't be deleted. The deploy fails with an error naming the policies that
+ * use it.
+ * :::
+ *
+ * Disabled policies don't hold a list: deleting a list one uses succeeds, and
+ * that policy then can't be re-enabled until its filter is fixed.
+ *
+ * @resource
  */
 export const TrafficMatchingList = Resource<TrafficMatchingList>("UnifiNetwork.TrafficMatchingList")({
 	/**

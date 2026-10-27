@@ -1,0 +1,59 @@
+---
+title: Ordering
+description: Set the order a zone pair's policies are evaluated in.
+---
+
+Policies from one zone to another are evaluated in order, first match wins. A [`FirewallPolicyOrdering`](/reference/firewallpolicyordering/) sets that order for one zone pair. The pair's system policies sit between its two lists, `beforeSystemDefined` and `afterSystemDefined`.
+
+## Put an allow before a block
+
+```ts
+// src/firewall.ts
+import * as UnifiNetwork from "@alchemy-unifi/network";
+import * as Effect from "effect/Effect";
+
+export const firewall = Effect.gen(function* () {
+	const { INTERNAL } = UnifiNetwork.FirewallZone;
+	const lab = yield* UnifiNetwork.FirewallZone("lab-zone", { name: "Lab" });
+	const allowSsh = yield* UnifiNetwork.FirewallPolicy("allow-ssh", {
+		name: "Allow SSH to the lab",
+		enabled: true,
+		action: { type: "ALLOW", allowReturnTraffic: true },
+		source: { zone: INTERNAL },
+		destination: {
+			zone: lab,
+			trafficFilter: {
+				type: "PORT",
+				portFilter: { type: "PORTS", matchOpposite: false, items: [{ type: "PORT_NUMBER", value: 22 }] },
+			},
+		},
+		ipProtocolScope: {
+			ipVersion: "IPV4_AND_IPV6",
+			protocolFilter: { type: "PRESET", preset: { name: "TCP_UDP" } },
+		},
+		loggingEnabled: false,
+	});
+	const blockRest = yield* UnifiNetwork.FirewallPolicy("block-rest", {
+		name: "Block the rest of the lab",
+		enabled: true,
+		action: { type: "BLOCK" },
+		source: { zone: INTERNAL },
+		destination: { zone: lab },
+		ipProtocolScope: { ipVersion: "IPV4_AND_IPV6" },
+		loggingEnabled: false,
+	});
+	yield* UnifiNetwork.FirewallPolicyOrdering("internal-to-lab", {
+		source: INTERNAL,
+		destination: lab,
+		beforeSystemDefined: [allowSsh, blockRest],
+	});
+});
+```
+
+## Keep policies made in the UI
+
+Policies the ordering doesn't list stay after the listed ones, with a warning. Set `exclusive: true` to fail the deploy instead.
+
+## Leave the order behind
+
+There's one ordering per zone pair, so an existing one is adopted without `--adopt`, and deleting the resource leaves the order as it is.

@@ -1,0 +1,133 @@
+---
+title: "Part 6: More Sites"
+description: Deploy the same Stack to a second console, with a profile and stage per site.
+sidebar:
+    order: 6
+---
+
+import PackageManagers from "~/components/PackageManagers.astro";
+
+One Stack can manage several sites: one stage per site, each deployed to its own console. In this part you'll add an **office** site with the same lab.
+
+## Add a profile for the office
+
+So far you've used Alchemy's default profile. Create one per console, so each stage has its own:
+
+<PackageManagers run="alchemy profile edit --profile office --add UnifiNetwork" />
+
+Choose **Through ui.com** if the office console isn't on your network.
+
+## Keep what differs in one place
+
+Each console's default network is its own. Put those settings in `src/sites.ts`, keyed by stage:
+
+```ts
+// src/sites.ts
+import * as UnifiNetwork from "@alchemy-unifi/network";
+import { Stack } from "alchemy/Stack";
+import * as Effect from "effect/Effect";
+
+/** What differs between sites: each console's default network, as it is now. */
+const sites: Record<string, { readonly defaultNetwork: UnifiNetwork.GatewayNetworkProps["ipv4Configuration"] }> = {
+	home: {
+		defaultNetwork: {
+			autoScaleEnabled: true,
+			hostIpAddress: "192.168.1.1",
+			prefixLength: 24,
+			dhcpConfiguration: {
+				mode: "SERVER",
+				ipAddressRange: { start: "192.168.1.6", stop: "192.168.1.254" },
+				leaseTimeSeconds: 86400,
+				domainName: "localdomain",
+				pingConflictDetectionEnabled: true,
+			},
+		},
+	},
+	office: {
+		defaultNetwork: {
+			autoScaleEnabled: true,
+			hostIpAddress: "192.168.2.1",
+			prefixLength: 24,
+			dhcpConfiguration: {
+				mode: "SERVER",
+				ipAddressRange: { start: "192.168.2.6", stop: "192.168.2.254" },
+				leaseTimeSeconds: 86400,
+				domainName: "localdomain",
+				pingConflictDetectionEnabled: true,
+			},
+		},
+	},
+};
+
+export const site = Effect.gen(function* () {
+	const { stage } = yield* Stack;
+	const current = sites[stage];
+	if (current === undefined) return yield* Effect.die(new Error(`No site for stage "${stage}"`));
+	return current;
+});
+```
+
+## Use the site's settings
+
+Read the current site in the Stack, and use its default network settings:
+
+```diff lang="typescript"
+// alchemy.run.ts
+import * as UnifiNetwork from "@alchemy-unifi/network";
+import * as Alchemy from "alchemy";
+import * as RemovalPolicy from "alchemy/RemovalPolicy";
+import * as Effect from "effect/Effect";
+import { Firewall } from "./src/firewall.ts";
+import { Lab } from "./src/lab.ts";
++import { site } from "./src/sites.ts";
+
+export default Alchemy.Stack(
+	"UnifiLab",
+	{ providers: UnifiNetwork.providers(), state: UnifiNetwork.state() },
+	Effect.gen(function* () {
++		const current = yield* site;
+		const lab = yield* Lab;
+		yield* Firewall(lab.zone);
+		yield* UnifiNetwork.Network("default", {
+			management: "GATEWAY",
+			name: "Default",
+			vlanId: 1,
+			enabled: true,
+			cellularBackupEnabled: true,
+			internetAccessEnabled: true,
+			isolationEnabled: false,
+			zone: UnifiNetwork.FirewallZone.INTERNAL,
+-			ipv4Configuration: {
+-				autoScaleEnabled: true,
+-				hostIpAddress: "192.168.1.1",
+-				prefixLength: 24,
+-				dhcpConfiguration: {
+-					mode: "SERVER",
+-					ipAddressRange: { start: "192.168.1.6", stop: "192.168.1.254" },
+-					leaseTimeSeconds: 86400,
+-					domainName: "localdomain",
+-					pingConflictDetectionEnabled: true,
+-				},
+-			},
++			ipv4Configuration: current.defaultNetwork,
+		}).pipe(RemovalPolicy.retain());
+		return { labNetworkId: lab.network.networkId };
+	}),
+);
+```
+
+## Deploy each site
+
+<PackageManagers run="alchemy deploy --stage home" />
+
+<PackageManagers run="alchemy deploy --stage office --profile office --adopt" />
+
+The office's first deploy adopts its default network, so plan it with `--adopt` first, as in [Part 2](/tutorial/part-2/). Each stage keeps its state on its own console.
+
+:::caution
+Nothing stops `--stage office` with the home profile, which would put the office's settings on the home console. To catch that, check the profile in the Stack; see [Several consoles](/setup/#several-consoles).
+:::
+
+## Recap
+
+You deployed the Stack to two sites. Next, in [Part 7](/tutorial/part-7/), you'll deploy from CI.

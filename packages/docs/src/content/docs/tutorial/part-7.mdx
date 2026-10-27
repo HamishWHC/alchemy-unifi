@@ -1,0 +1,74 @@
+---
+title: "Part 7: CI/CD"
+description: Deploy each site from GitHub Actions through ui.com, then clean up the lab.
+sidebar:
+    order: 7
+---
+
+In this last part you'll deploy both sites from GitHub Actions on every push to `main`, reaching each console through ui.com.
+
+## Create the GitHub environments
+
+CI has no Alchemy profiles, so it uses [environment variables](/setup/#environment-variables-and-ci) instead. In your repository's Settings → Environments, create `home` and `office`, each with these secrets:
+
+| Secret                | Value                                                             |
+| --------------------- | ----------------------------------------------------------------- |
+| `UNIFI_CONSOLE_ID`    | The console's ID: run `npx alchemy profile show` with its profile |
+| `UNIFI_API_KEY`       | A Site Manager API key from [unifi.ui.com](https://unifi.ui.com)  |
+| `LAB_WIFI_PASSPHRASE` | The lab's Wi-Fi passphrase                                        |
+
+## Add the workflow
+
+Create `.github/workflows/deploy.yml`:
+
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy
+
+on:
+    push:
+        branches: [main]
+
+jobs:
+    deploy:
+        strategy:
+            matrix:
+                site: [home, office]
+        runs-on: ubuntu-latest
+        environment: ${{ matrix.site }}
+        concurrency: deploy-${{ matrix.site }}
+        steps:
+            - uses: actions/checkout@v6
+            - uses: actions/setup-node@v6
+              with:
+                  node-version: 24
+            - run: npm ci
+            - run: npx alchemy deploy --stage ${{ matrix.site }} --yes
+              env:
+                  UNIFI_CONSOLE_ID: ${{ secrets.UNIFI_CONSOLE_ID }}
+                  UNIFI_API_KEY: ${{ secrets.UNIFI_API_KEY }}
+                  LAB_WIFI_PASSPHRASE: ${{ secrets.LAB_WIFI_PASSPHRASE }}
+```
+
+Each site deploys in its own job, with its own environment's secrets. `concurrency` queues deploys of one site, since the state store locks each stage while it runs.
+
+## Push
+
+Commit and push to `main`. The workflow deploys both sites, and the job logs show each plan.
+
+## Clean up
+
+When you're done with the lab, destroy each site's Stack:
+
+```sh
+npx alchemy destroy --stage home
+npx alchemy destroy --stage office --profile office
+```
+
+The lab network, Wi-Fi, zone, policies, list and DNS records are deleted. The default networks stay, because they're retained.
+
+## Where next
+
+- [Networks](/networks/networks/), [Firewall](/firewall/policies/) and [DNS](/dns/local-dns/) cover each resource in more depth.
+- [State on the console](/state/state-on-the-console/) explains the state store and its locks.
+- [home-network](https://github.com/HamishWHC/home-network) is a real two-site config, with a full firewall matrix.

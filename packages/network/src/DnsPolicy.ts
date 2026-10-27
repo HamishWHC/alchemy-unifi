@@ -74,12 +74,19 @@ const findExisting = (policies: ReadonlyArray<Sdk.DNSPolicy>, body: Sdk.CreateOr
 };
 
 /**
- * A local DNS record or forwarding rule on the gateway. DNS policies have no
- * name, so existing ones are adopted with `--adopt` by type and domain (and,
- * when a domain has several records of that type, by their values).
- * Changing `type` updates the policy in place.
+ * The gateway's local DNS: a record (`A_RECORD`, `AAAA_RECORD`,
+ * `CNAME_RECORD`, `MX_RECORD`, `SRV_RECORD`, `TXT_RECORD`), or a
+ * `FORWARD_DOMAIN` rule that sends a domain's queries to another DNS server.
  *
- * @example
+ * DNS policies have no name, so existing ones are adopted with `--adopt` by
+ * type and domain. A domain may have several records of one type; then the
+ * one whose other props match too is adopted. Changing `type` updates the
+ * policy in place.
+ *
+ * ### Creating a record
+ *
+ * **Example:** An A record
+ *
  * ```ts
  * import * as UnifiNetwork from "@alchemy-unifi/network";
  * import * as Alchemy from "alchemy";
@@ -99,6 +106,44 @@ const findExisting = (policies: ReadonlyArray<Sdk.DNSPolicy>, body: Sdk.CreateOr
  * 	}),
  * );
  * ```
+ *
+ * **Example:** A CNAME
+ *
+ * ```ts
+ * import * as UnifiNetwork from "@alchemy-unifi/network";
+ * import * as Effect from "effect/Effect";
+ *
+ * export const files = UnifiNetwork.DnsPolicy("files", {
+ * 	type: "CNAME_RECORD",
+ * 	enabled: true,
+ * 	domain: "files.home.arpa",
+ * 	targetDomain: "nas.home.arpa",
+ * 	ttlSeconds: 300,
+ * }).pipe(Effect.asVoid);
+ * ```
+ *
+ * :::caution
+ * The console checks records against each other, e.g. it rejects a CNAME
+ * that overlaps another record.
+ * :::
+ *
+ * ### Forwarding a domain
+ *
+ * **Example:** Send a domain's queries to another server
+ *
+ * ```ts
+ * import * as UnifiNetwork from "@alchemy-unifi/network";
+ * import * as Effect from "effect/Effect";
+ *
+ * export const lab = UnifiNetwork.DnsPolicy("lab", {
+ * 	type: "FORWARD_DOMAIN",
+ * 	enabled: true,
+ * 	domain: "lab.home.arpa",
+ * 	ipAddress: "192.168.10.53",
+ * }).pipe(Effect.asVoid);
+ * ```
+ *
+ * @resource
  */
 export const DnsPolicy = Resource<DnsPolicy>("UnifiNetwork.DnsPolicy");
 

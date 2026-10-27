@@ -154,17 +154,21 @@ const attributesOf = (siteId: string, wifiBroadcastId: string) =>
 const NATIVE_NETWORK: NativeNetwork = { type: "NATIVE" };
 
 /**
- * A Wi-Fi network (SSID). `type` picks a standard or an IoT-optimised
- * broadcast; changing it, or the site, replaces the broadcast.
+ * A Wi-Fi network (SSID). `type` is `"STANDARD"` or `"IOT_OPTIMIZED"`.
+ * Existing broadcasts are adopted by SSID with `--adopt`.
  *
- * Props are authoritative: every update sends the whole broadcast, with
- * explicit defaults for unset fields (a standard broadcast's
- * `bandSteeringEnabled: false`), so changes made in the UI, passphrases
- * included, are put back. The `config` attribute mirrors the console's
- * object, so `alchemy drift` sees them. Existing broadcasts are adopted by name with
- * `--adopt`.
+ * :::caution
+ * Changing `type` or `site` replaces the broadcast, so devices reconnect.
+ * :::
  *
- * @example
+ * ### Creating a broadcast
+ *
+ * `network` is a network reference, or `WifiBroadcast.NATIVE_NETWORK` for the
+ * site's default network. A reference to the default network (like `lan`
+ * below) works too.
+ *
+ * **Example:** A WPA2 network on the default network
+ *
  * ```ts
  * import * as UnifiNetwork from "@alchemy-unifi/network";
  * import * as Alchemy from "alchemy";
@@ -200,6 +204,60 @@ const NATIVE_NETWORK: NativeNetwork = { type: "NATIVE" };
  * 	}),
  * );
  * ```
+ *
+ * ### Security
+ *
+ * :::caution
+ * The console requires more than the API spec says, and the types enforce it:
+ *
+ * - Standard broadcasts with WPA security must set `fastRoamingEnabled`.
+ * - Open security and WPA2/WPA3 personal need a `network`.
+ * - WPA2 personal needs either `presharedKeys`, or both a `network` and a
+ *   `passphrase`.
+ * - `mloEnabled` is only accepted (even as `false`) with WPA3 on several bands.
+ * :::
+ *
+ * ### Passphrases
+ *
+ * Read passphrases from config as `Redacted`, as above, to keep them out of
+ * logs and plans.
+ *
+ * :::caution
+ * Passphrases are stored in plaintext in Alchemy's state, as every prop is.
+ * The console returns them, so `alchemy drift` sees one changed in the UI.
+ * :::
+ *
+ * ### Looking up a broadcast
+ *
+ * `WifiBroadcast.lookup({ name })` finds a broadcast the stack uses but
+ * doesn't manage.
+ *
+ * **Example:** An SSID made in the UI
+ *
+ * ```ts
+ * import * as UnifiNetwork from "@alchemy-unifi/network";
+ * import * as Effect from "effect/Effect";
+ *
+ * export const guestWifi = Effect.gen(function* () {
+ * 	const broadcast = yield* UnifiNetwork.WifiBroadcast.lookup({ name: "Guests" });
+ * 	return broadcast.wifiBroadcastId;
+ * });
+ * ```
+ *
+ * ### Changes made in the UI
+ *
+ * Props are authoritative: every update sends the whole broadcast, with
+ * explicit defaults for unset fields (a standard broadcast's
+ * `bandSteeringEnabled: false`), so changes made in the UI, passphrases
+ * included, are put back. The `config` attribute mirrors the console's
+ * object, so `alchemy drift` sees them.
+ *
+ * :::note
+ * Enterprise security's `radiusConfiguration` is untyped, and device filters
+ * and mDNS policies still take raw device and network IDs.
+ * :::
+ *
+ * @resource
  */
 export const WifiBroadcast = Resource<WifiBroadcast>("UnifiNetwork.WifiBroadcast")({
 	NATIVE_NETWORK,

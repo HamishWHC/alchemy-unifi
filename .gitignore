@@ -32,3 +32,8 @@ Thumbs.db
 
 # Local plans and notes
 _scratch/
+
+# Astro
+.astro/
+# Generated from the network package's JSDoc (`pnpm --filter @alchemy-unifi/docs reference`)
+packages/docs/src/content/docs/reference/

@@ -1,14 +1,22 @@
-# The SDK
+---
+title: Calling the Integration API
+description: Call the UniFi Network Integration API directly with the Effect SDK the provider is built on.
+---
 
-`@alchemy-unifi/network-sdk` is an Effect SDK for the UniFi Network Integration API (Network 10.6), generated from UniFi's OpenAPI spec. Use it to call the API directly: for scripts, for things the provider doesn't manage yet, or for reading data such as clients and devices.
+import PackageManagers from "~/components/PackageManagers.astro";
 
-```sh
-npm install @alchemy-unifi/network-sdk effect
-```
+`@alchemy-unifi/network-sdk` is an Effect SDK for the UniFi Network Integration API (Network 10.6), generated from UniFi's OpenAPI spec. Use it for scripts, for things the provider doesn't manage yet, or for reading data such as clients and devices.
+
+## Install
+
+<PackageManagers add="@alchemy-unifi/network-sdk effect" />
+
+## List the networks
 
 Each operation is a function returning an `Effect`, which needs `Credentials` and an `HttpClient`:
 
 ```ts
+// src/list-networks.ts
 import * as Sdk from "@alchemy-unifi/network-sdk";
 import * as Effect from "effect/Effect";
 import * as FetchHttpClient from "effect/http/FetchHttpClient";
@@ -33,7 +41,7 @@ export const program = Effect.gen(function* () {
 }).pipe(Effect.provide(Layer.mergeAll(credentials, FetchHttpClient.layer)));
 ```
 
-## Base URLs
+## Pick the base URL
 
 | Console                     | `baseUrl`                                                                         | Key                  |
 | --------------------------- | --------------------------------------------------------------------------------- | -------------------- |
@@ -43,7 +51,7 @@ export const program = Effect.gen(function* () {
 
 Consoles use self-signed certificates, which `FetchHttpClient` rejects. Use a client that trusts the console's certificate, or the provider, which handles pinning.
 
-## Errors and retries
+## Handle errors
 
 - Each operation fails with typed errors for the responses UniFi documents (`NotFound`, `UnprocessableEntity`, …). Anything else becomes `UnknownUnifiNetworkError`, and a response that doesn't match the schema becomes `UnifiNetworkParseError`.
 - Throttling and transient failures are retried by default. Opt out with `Sdk.Retry.none`.
@@ -52,6 +60,6 @@ Consoles use self-signed certificates, which `FetchHttpClient` rejects. Use a cl
 ## Gotchas
 
 - **Some fields are `unknown`,** because UniFi's spec gives them no schema: firewall and ACL `sourceFilter`/`destinationFilter`, Wi-Fi `radiusConfiguration`, a device's `accessPoint`, and a few metadata fields.
-- **The console requires some fields the spec calls optional,** depending on others (see the gotchas on each [resource page](README.md#resources)). The provider's types enforce them; the SDK's don't.
+- **The console requires some fields the spec calls optional,** depending on others (see the [reference](/reference/wifibroadcast/#security)). The provider's types enforce them; the SDK's don't.
 - **Requests can't carry fields the console doesn't accept,** so a `GET` response sent back as an update fails until you drop `id`, `metadata` and (for networks) `default`.
 - **ui.com allows 100 requests a minute per console.** The SDK retries 429s, but doesn't pace itself.

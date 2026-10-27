@@ -1,0 +1,50 @@
+---
+title: Wi-Fi
+description: Broadcast SSIDs on your networks, with passphrases read from config.
+---
+
+A [`WifiBroadcast`](/reference/wifibroadcast/) is an SSID. `type` is `"STANDARD"` or `"IOT_OPTIMIZED"`, and `network` is the network its clients join.
+
+## Broadcast an SSID
+
+```ts
+// src/wifi.ts
+import * as UnifiNetwork from "@alchemy-unifi/network";
+import * as Config from "effect/Config";
+import * as Effect from "effect/Effect";
+
+export const wifi = Effect.gen(function* () {
+	const lab = yield* UnifiNetwork.Network.lookup({ vlanId: 50 });
+	yield* UnifiNetwork.WifiBroadcast("lab-wifi", {
+		type: "STANDARD",
+		name: "Lab",
+		enabled: true,
+		network: lab,
+		securityConfiguration: {
+			type: "WPA2_PERSONAL",
+			passphrase: yield* Config.Redacted("LAB_WIFI_PASSPHRASE"),
+			fastRoamingEnabled: false,
+		},
+		broadcastingFrequenciesGHz: [2.4, 5],
+		hideName: false,
+		clientIsolationEnabled: false,
+		multicastToUnicastConversionEnabled: false,
+		uapsdEnabled: false,
+		channel2gLockedTo6: false,
+		dtimPeriod2gLockedTo3: false,
+		advertiseDeviceName: false,
+		arpProxyEnabled: false,
+		bssTransitionEnabled: true,
+	});
+});
+```
+
+## Read the passphrase from config
+
+`Config.Redacted` reads `LAB_WIFI_PASSPHRASE` from the environment (or a `.env` file) and keeps it out of logs and plans. Alchemy's state still holds it in plaintext, as it does every prop.
+
+## Put it on the default network
+
+Use `WifiBroadcast.NATIVE_NETWORK`, or a reference to the default network such as `Network.lookup({ vlanId: 1 })`.
+
+See the [`WifiBroadcast` reference](/reference/wifibroadcast/) for the security rules the console enforces.

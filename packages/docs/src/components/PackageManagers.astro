@@ -1,0 +1,29 @@
+---
+import { Code, TabItem, Tabs } from "@astrojs/starlight/components";
+
+interface Props {
+	/** Packages to install, e.g. `"alchemy effect"`. */
+	readonly add?: string;
+	/** Install `add` as dev dependencies. */
+	readonly dev?: boolean;
+	/** A package binary to run instead, e.g. `"alchemy deploy"`. */
+	readonly run?: string;
+}
+
+const { add, dev = false, run } = Astro.props;
+const managers = [
+	{ label: "npm", add: `npm install${dev ? " --save-dev" : ""} ${add}`, run: `npx ${run}` },
+	{ label: "pnpm", add: `pnpm add${dev ? " --save-dev" : ""} ${add}`, run: `pnpm exec ${run}` },
+	{ label: "yarn", add: `yarn add${dev ? " --dev" : ""} ${add}`, run: `yarn ${run}` },
+];
+---
+
+<Tabs syncKey="pkg">
+	{
+		managers.map((manager) => (
+			<TabItem label={manager.label}>
+				<Code lang="sh" code={add === undefined ? manager.run : manager.add} />
+			</TabItem>
+		))
+	}
+</Tabs>

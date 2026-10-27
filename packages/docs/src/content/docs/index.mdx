@@ -1,0 +1,85 @@
+---
+title: alchemy-unifi
+description: Manage a UniFi site's networks, Wi-Fi, firewall and local DNS as Effect code with Alchemy.
+---
+
+import { LinkCard, CardGrid } from "@astrojs/starlight/components";
+
+Describe a UniFi site's networks, Wi-Fi, zone-based firewall and local DNS as [Effect](https://effect.website) code, and let [Alchemy](https://alchemy.run) plan and apply the changes on your console.
+
+```ts
+// alchemy.run.ts
+import * as UnifiNetwork from "@alchemy-unifi/network";
+import * as Alchemy from "alchemy";
+import * as Effect from "effect/Effect";
+
+export default Alchemy.Stack(
+	"HomeNetwork",
+	{ providers: UnifiNetwork.providers(), state: UnifiNetwork.state() },
+	Effect.gen(function* () {
+		const cameras = yield* UnifiNetwork.FirewallZone("cameras", { name: "Cameras" });
+		yield* UnifiNetwork.Network("cctv", {
+			management: "GATEWAY",
+			name: "CCTV",
+			vlanId: 30,
+			enabled: true,
+			cellularBackupEnabled: false,
+			internetAccessEnabled: false,
+			isolationEnabled: true,
+			zone: cameras,
+			ipv4Configuration: { autoScaleEnabled: false, hostIpAddress: "192.168.30.1", prefixLength: 24 },
+		});
+		yield* UnifiNetwork.FirewallPolicy("cameras-to-internal", {
+			name: "Block cameras to internal",
+			enabled: true,
+			action: { type: "BLOCK" },
+			source: { zone: cameras },
+			destination: { zone: UnifiNetwork.FirewallZone.INTERNAL },
+			ipProtocolScope: { ipVersion: "IPV4_AND_IPV6" },
+			loggingEnabled: false,
+		});
+	}),
+);
+```
+
+<CardGrid>
+	<LinkCard title="Setup" description="Connect to your console, directly or through ui.com." href="/setup/" />
+	<LinkCard title="Tutorial" description="Build a lab network, step by step." href="/tutorial/part-1/" />
+</CardGrid>
+
+## Networks
+
+- [Networks](/networks/networks/): VLANs, DHCP and zone membership.
+- [Wi-Fi](/networks/wifi/): SSIDs and their security.
+
+## Firewall
+
+- [Zones](/firewall/zones/): custom and built-in zones.
+- [Policies](/firewall/policies/): allow, block or reject traffic between zones.
+- [Ordering](/firewall/ordering/): the order a zone pair's policies run in.
+- [Traffic-matching lists](/firewall/traffic-matching-lists/): reusable port and address lists.
+
+## DNS
+
+- [Local DNS](/dns/local-dns/): records and forwarded domains on the gateway.
+
+## State
+
+- [State on the console](/state/state-on-the-console/): keep a stack's state on the console it manages.
+
+## Concepts
+
+- [References and lookups](/concepts/references-and-lookups/): point at managed, existing and built-in objects.
+- [Changes made in the UI](/concepts/changes-made-in-the-ui/): what deploys and `alchemy drift` do with them.
+- [Adoption](/concepts/adoption/): take over objects that already exist.
+
+## SDK
+
+- [Calling the Integration API](/sdk/calling-the-api/): the raw Effect SDK the provider is built on.
+
+## Requirements
+
+- UniFi Network **10.6** with the zone-based firewall. The provider tracks the latest stable Network release, and warns when a console runs another version.
+- Node 22 or later, Alchemy 2 (beta) and Effect 4.
+
+For a real-world config, see [home-network](https://github.com/HamishWHC/home-network): two sites sharing one stack, with zones, networks, Wi-Fi, a full firewall matrix and the state store on the console.

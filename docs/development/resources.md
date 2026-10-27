@@ -1,6 +1,6 @@
 # Resource implementation
 
-How the resources in `packages/network/src` are built. `providers()` registers `FirewallZone`, `Network`, `WifiBroadcast`, `TrafficMatchingList`, `FirewallPolicy`, `FirewallPolicyOrdering` and `DnsPolicy`. The user-facing pages are in [`docs/resources/`](../resources/); the API behaviour behind these decisions is in [unifi-api.md](unifi-api.md#behaviour-not-in-the-spec).
+How the resources in `packages/network/src` are built. `providers()` registers `FirewallZone`, `Network`, `WifiBroadcast`, `TrafficMatchingList`, `FirewallPolicy`, `FirewallPolicyOrdering` and `DnsPolicy`. The user-facing reference is generated from each resource's JSDoc (see [README.md](README.md#documentation)); the API behaviour behind these decisions is in [unifi-api.md](unifi-api.md#behaviour-not-in-the-spec).
 
 ## Conventions
 

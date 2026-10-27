@@ -1,0 +1,10 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		// Nothing here is published, so no declarations.
+		"declaration": false,
+		"declarationMap": false,
+		"paths": { "~/*": ["./src/*"] }
+	},
+	"include": [".astro/types.d.ts", "*.ts", "scripts/**/*.ts", "src/**/*.ts"]
+}

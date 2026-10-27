@@ -1,6 +1,6 @@
 # Architecture: connection and auth
 
-How `@alchemy-unifi/network` finds and talks to a console. The user-facing side is [connecting.md](../connecting.md). One Alchemy profile (or one set of environment variables) points at one console; users with several consoles use a stage and profile per console.
+How `@alchemy-unifi/network` finds and talks to a console. The user-facing side is [Setup](../../packages/docs/src/content/docs/setup.mdx). One Alchemy profile (or one set of environment variables) points at one console; users with several consoles use a stage and profile per console.
 
 ## Auth provider `UnifiNetwork`
 

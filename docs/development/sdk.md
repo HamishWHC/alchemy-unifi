@@ -1,6 +1,6 @@
 # SDK internals (`@alchemy-unifi/network-sdk`)
 
-The user-facing page is [sdk.md](../sdk.md).
+The user-facing page is [Calling the Integration API](../../packages/docs/src/content/docs/sdk/calling-the-api.mdx).
 
 An Effect SDK for the UniFi Network Integration API in `packages/network-sdk`, generated with distilled's codegen (see [spec-generation.md](spec-generation.md)). Its layout and `exports` match a `@distilled.cloud/*` package (e.g. `@distilled.cloud/neon`), so it can be upstreamed without changes.
 

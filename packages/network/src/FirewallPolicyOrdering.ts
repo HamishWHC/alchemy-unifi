@@ -140,25 +140,21 @@ const describePolicies = Effect.fn(function* (site: Site, ids: ReadonlyArray<str
 });
 
 /**
- * The evaluation order of user-defined policies from one zone to another.
- * Listing policies makes the ordering depend on them, so it's applied after
- * they're created or moved, and re-applied when the list changes.
+ * The order the policies from one zone to another are evaluated in, first
+ * match wins. Each zone pair has two buckets, with the system policies
+ * between them: `beforeSystemDefined` and `afterSystemDefined`. System
+ * policies can't be reordered, and policies UniFi derives from UI objects
+ * aren't ordered at all.
  *
- * UniFi rejects an ordering that leaves out any of the pair's policies, so
- * unlisted ones (e.g. made in the UI) are kept after the listed ones in each
- * bucket, in their current relative order, with a warning; `exclusive: true`
- * fails instead. A policy the ordering listed before but no longer does is
- * kept quietly, even when exclusive: it's usually being deleted in the same
- * deploy, which runs after the ordering is applied. The state store's
- * policies (`UnifiNetwork.state()`, Gateway → Gateway) are kept quietly too.
- * System-defined policies sit between the two buckets and
- * can't be reordered; policies UniFi derives from UI Objects aren't ordered
- * at all.
+ * The zone pair is the identity, so an existing ordering is adopted without
+ * `--adopt`, and deleting the resource leaves the order as it is. Listing
+ * policies makes the ordering depend on them, so it's applied after they're
+ * created or moved.
  *
- * The zone pair is the identity: an existing ordering is adopted without
- * `--adopt`, and deleting the resource leaves the order as it is.
+ * ### Ordering a zone pair
  *
- * @example
+ * **Example:** An allow before a block
+ *
  * ```ts
  * import * as UnifiNetwork from "@alchemy-unifi/network";
  * import * as Alchemy from "alchemy";
@@ -170,7 +166,12 @@ const describePolicies = Effect.fn(function* (site: Site, ids: ReadonlyArray<str
  * 	Effect.gen(function* () {
  * 		const { INTERNAL } = UnifiNetwork.FirewallZone;
  * 		const iot = yield* UnifiNetwork.FirewallZone("iot-zone", { name: "IoT" });
- * 		const policy = { enabled: true, source: { zone: INTERNAL }, destination: { zone: iot }, loggingEnabled: false } as const;
+ * 		const policy = {
+ * 			enabled: true,
+ * 			source: { zone: INTERNAL },
+ * 			destination: { zone: iot },
+ * 			loggingEnabled: false,
+ * 		} as const;
  * 		const allowHomeAssistant = yield* UnifiNetwork.FirewallPolicy("allow-ha", {
  * 			...policy,
  * 			name: "Allow Home Assistant",
@@ -191,6 +192,30 @@ const describePolicies = Effect.fn(function* (site: Site, ids: ReadonlyArray<str
  * 	}),
  * );
  * ```
+ *
+ * ### Policies the ordering doesn't list
+ *
+ * UniFi rejects an ordering that leaves out any of the pair's policies, so
+ * unlisted ones (e.g. made in the UI) are kept after the listed ones in each
+ * bucket, in their current relative order, with a warning. Set
+ * `exclusive: true` to fail instead.
+ *
+ * A policy the ordering listed before but no longer does is kept quietly,
+ * even when exclusive: it's usually being deleted in the same deploy, which
+ * runs after the ordering is applied. So removing a policy and its place in
+ * the ordering in one deploy works.
+ *
+ * :::caution
+ * A listed policy must be in the pair. One that's missing, in another pair,
+ * or listed twice fails the deploy.
+ * :::
+ *
+ * ### The state store's policies
+ *
+ * A Gateway → Gateway ordering keeps `UnifiNetwork.state()`'s policies where
+ * they are, even when exclusive.
+ *
+ * @resource
  */
 export const FirewallPolicyOrdering = Resource<FirewallPolicyOrdering>("UnifiNetwork.FirewallPolicyOrdering");
 

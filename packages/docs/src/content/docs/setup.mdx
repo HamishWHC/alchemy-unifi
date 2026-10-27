@@ -1,0 +1,90 @@
+---
+title: Setup
+description: Connect Alchemy to your UniFi console, directly or through ui.com, and set up CI.
+---
+
+import PackageManagers from "~/components/PackageManagers.astro";
+
+The provider reaches one console per Alchemy profile, or per set of environment variables. Everything here uses the default profile; add `--profile <name>` to any command to use another.
+
+## Install
+
+<PackageManagers add="@alchemy-unifi/network alchemy effect @effect/platform-node" />
+
+`alchemy`, `effect` and `@effect/platform-node` are peer dependencies, so your project has one copy of each.
+
+## Create an API key
+
+| Method             | Key                                                              | Use when                                         |
+| ------------------ | ---------------------------------------------------------------- | ------------------------------------------------ |
+| **Directly**       | A Network API key: the Network app's Settings → Integrations     | You're on the console's network                  |
+| **Through ui.com** | A Site Manager API key from [unifi.ui.com](https://unifi.ui.com) | You're elsewhere, or the console is behind CGNAT |
+
+Self-hosted Network Application controllers work directly too: give the controller's URL, e.g. `https://unifi.example:8443`.
+
+## Add the provider to a profile
+
+<PackageManagers run="alchemy profile edit --add UnifiNetwork" />
+
+Choose **Directly** and give the console's URL (e.g. `https://192.168.1.1`) and the Network API key. Or choose **Through ui.com**, give the Site Manager key, and pick the console. Setup connects and lists the console's sites, which proves the key works.
+
+## Check the connection
+
+<PackageManagers run="alchemy profile show" />
+
+You see the console's Network version, or why it's unreachable.
+
+## Pin the certificate
+
+Consoles ship a self-signed certificate. When Node doesn't trust it, setup offers to pin it: the provider then accepts only a certificate chain containing that SHA-256 fingerprint. It can also skip verification entirely, which isn't recommended.
+
+:::caution
+A console that regenerates its certificate (after a reset, or some upgrades) fails the pin. Run `alchemy profile edit --reconfigure UnifiNetwork` to pin the new one.
+:::
+
+## Through ui.com
+
+- ui.com allows 100 requests a minute per console. The provider stays under 90, so a large first deploy or adoption can slow down. Plans read most resource types with one request per type.
+- Each request takes about a second or more, and [state on the console](/state/state-on-the-console/#size) holds less.
+
+## Several consoles
+
+Create a profile per console, use a stage per site, and pass both:
+
+<PackageManagers run="alchemy profile edit --profile office --add UnifiNetwork" />
+
+<PackageManagers run="alchemy deploy --stage office --profile office" />
+
+A stack can't tell by itself whether a stage is paired with the right profile. If you deploy one stack to several sites, check it in the stack body. The resolved credentials say where they came from:
+
+```ts
+// src/profile.ts
+import * as UnifiNetwork from "@alchemy-unifi/network";
+import * as Effect from "effect/Effect";
+
+export const profileName = Effect.gen(function* () {
+	const { source } = yield* yield* UnifiNetwork.UnifiNetworkCredentials;
+	return source.type === "profile" ? source.profile : "environment";
+});
+```
+
+## Consoles with several sites
+
+A self-hosted controller can host several UniFi sites, e.g. one per customer. Setup asks which site resources go in by default, and any resource can set `site` (an ID, internal reference or name) to use another. A console with one site needs neither.
+
+## Environment variables and CI
+
+Set these instead of a profile:
+
+| Variable                 | For                                                            |
+| ------------------------ | -------------------------------------------------------------- |
+| `UNIFI_URL`              | A direct connection: the console's URL                         |
+| `UNIFI_CONSOLE_ID`       | A ui.com connection: the console's ID (instead of `UNIFI_URL`) |
+| `UNIFI_API_KEY`          | The Network API key (direct) or Site Manager key (ui.com)      |
+| `UNIFI_CERT_FINGERPRINT` | Optional: a SHA-256 fingerprint to pin                         |
+| `UNIFI_INSECURE`         | Optional: `true` skips certificate verification                |
+| `UNIFI_SITE`             | Optional: the site, on consoles hosting several                |
+
+:::caution
+When `UNIFI_API_KEY` and one of `UNIFI_URL` or `UNIFI_CONSOLE_ID` are set, they win over every profile, for every stage. With several consoles, keep them out of `.env`, or every stage targets the same console.
+:::

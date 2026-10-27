@@ -1,0 +1,61 @@
+---
+title: Local DNS
+description: Add DNS records on the gateway, and forward a domain to another DNS server.
+---
+
+A [`DnsPolicy`](/reference/dnspolicy/) is a record on the gateway's DNS server (`A_RECORD`, `AAAA_RECORD`, `CNAME_RECORD`, `MX_RECORD`, `SRV_RECORD`, `TXT_RECORD`), or a `FORWARD_DOMAIN` rule.
+
+## Add a record
+
+```ts
+// src/dns.ts
+import * as UnifiNetwork from "@alchemy-unifi/network";
+import * as Effect from "effect/Effect";
+
+export const dns = Effect.gen(function* () {
+	yield* UnifiNetwork.DnsPolicy("lab-server", {
+		type: "A_RECORD",
+		enabled: true,
+		domain: "server.lab.home.arpa",
+		ipv4Address: "192.168.50.10",
+		ttlSeconds: 300,
+	});
+});
+```
+
+## Add an alias
+
+```ts
+// src/dns.ts
+import * as UnifiNetwork from "@alchemy-unifi/network";
+import * as Effect from "effect/Effect";
+
+export const dns = Effect.gen(function* () {
+	yield* UnifiNetwork.DnsPolicy("lab-files", {
+		type: "CNAME_RECORD",
+		enabled: true,
+		domain: "files.lab.home.arpa",
+		targetDomain: "server.lab.home.arpa",
+		ttlSeconds: 300,
+	});
+});
+```
+
+The console checks records against each other, and rejects a CNAME that overlaps another record.
+
+## Forward a domain
+
+```ts
+// src/dns.ts
+import * as UnifiNetwork from "@alchemy-unifi/network";
+import * as Effect from "effect/Effect";
+
+export const dns = Effect.gen(function* () {
+	yield* UnifiNetwork.DnsPolicy("corp", {
+		type: "FORWARD_DOMAIN",
+		enabled: true,
+		domain: "corp.example",
+		ipAddress: "10.0.0.53",
+	});
+});
+```

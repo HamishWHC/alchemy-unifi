@@ -1,0 +1,47 @@
+---
+title: References and lookups
+description: Point props at managed resources, objects that already exist, and built-in zones.
+---
+
+Each resource's props are the UniFi Network Integration API's create/update body, so the API's field names and options carry over. Where the API takes an ID, props take a **reference** instead: `zone` instead of `zoneId`, `network` instead of a network ID, `trafficMatchingList` instead of a list ID. Passphrases take `Redacted` values, and every resource has an optional `site` for [consoles with several sites](/setup/#consoles-with-several-sites).
+
+## Pass a reference
+
+A reference is a small object naming another object: `{ firewallZoneId }`, `{ networkId }`, `{ trafficMatchingListId }`. Resources, lookups and built-in constants all fit, and so does a literal object with an ID you already know. Passing a resource also makes Alchemy create it first.
+
+```ts
+// src/references.ts
+import * as UnifiNetwork from "@alchemy-unifi/network";
+import * as Effect from "effect/Effect";
+
+export const references = Effect.gen(function* () {
+	const managed = yield* UnifiNetwork.FirewallZone("cameras", { name: "Cameras" }); // a resource
+	const existing = yield* UnifiNetwork.FirewallZone.lookup({ name: "IoT" }); // a lookup
+	const builtIn = UnifiNetwork.FirewallZone.EXTERNAL; // a built-in zone
+	const known = { firewallZoneId: "6630f3a9-7a4c-4c1d-9b1e-0d0c4a5e2b11" }; // an ID you know
+	return [managed, existing, builtIn, known];
+});
+```
+
+## Look up what the stack doesn't manage
+
+`FirewallZone.lookup`, `Network.lookup`, `WifiBroadcast.lookup`, `TrafficMatchingList.lookup` and `FirewallPolicy.lookup` find things the stack uses but doesn't manage. They run during `plan`, and return the same attributes as the resource, so a lookup fits anywhere a reference does.
+
+```ts
+// src/lookups.ts
+import * as UnifiNetwork from "@alchemy-unifi/network";
+import * as Effect from "effect/Effect";
+
+export const lookups = Effect.gen(function* () {
+	const lan = yield* UnifiNetwork.Network.lookup({ vlanId: 1 });
+	const guests = yield* UnifiNetwork.Network.lookup({ name: "Guests" });
+	const printers = yield* UnifiNetwork.TrafficMatchingList.lookup({ name: "Printers" });
+	return { lan: lan.networkId, guests: guests.networkId, printers: printers.trafficMatchingListId };
+});
+```
+
+A lookup that finds nothing, or several matches, stops the plan with an error listing what it searched for.
+
+## Use a built-in zone
+
+The zone-based firewall's system zones are constants, not resources: `FirewallZone.INTERNAL`, `EXTERNAL`, `GATEWAY`, `VPN`, `HOTSPOT` and `DMZ`. They can't be renamed or deleted. Custom zones are [`FirewallZone`](/reference/firewallzone/) resources.

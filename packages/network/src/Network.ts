@@ -171,21 +171,27 @@ const attributesOf = (siteId: string, networkId: string) =>
 const isUserDefined = (network: Sdk.NetworkOverview) => network.metadata.origin === "USER_DEFINED";
 
 /**
- * A network (VLAN). `management` picks the kind: `"GATEWAY"` (routed by the
- * gateway), `"SWITCH"` (routed by a layer-3 switch) or `"UNMANAGED"`.
- * Changing it, or the site, replaces the network: the old one is deleted
- * first, since VLAN IDs must be unique.
+ * A network (VLAN). `management` picks the kind:
  *
- * Props are authoritative: every update sends the whole network, with
- * explicit defaults for unset fields (`mdnsForwardingEnabled: true`, and a
- * DHCP server's `domainName: ""`), so changes made in the UI are put back.
- * The `config` attribute mirrors the console's object, so `alchemy drift`
- * sees them.
- * Existing networks are adopted by VLAN ID
- * with `--adopt` (and renamed to match), including the site's default
- * network (VLAN 1), which is never deleted or replaced.
+ * | `management`  | Routed by                            | Has                                         |
+ * | ------------- | ------------------------------------ | ------------------------------------------- |
+ * | `"GATEWAY"`   | The gateway                          | DHCP, a zone, internet access and isolation |
+ * | `"SWITCH"`    | A layer-3 switch (`device`)          | DHCP on the switch                          |
+ * | `"UNMANAGED"` | Another router (carried, not routed) | Just the VLAN                               |
  *
- * @example
+ * Existing networks are adopted by VLAN ID with `--adopt`, and renamed to
+ * match your props.
+ *
+ * :::caution
+ * Changing `management` or `site` replaces the network, deleting the old one
+ * first, because VLAN IDs must be unique. A network still used by a Wi-Fi
+ * broadcast outside the stack can't be deleted, so that replacement fails.
+ * :::
+ *
+ * ### Creating a gateway network
+ *
+ * **Example:** A guest network with DHCP
+ *
  * ```ts
  * import * as UnifiNetwork from "@alchemy-unifi/network";
  * import * as Alchemy from "alchemy";
@@ -195,20 +201,145 @@ const isUserDefined = (network: Sdk.NetworkOverview) => network.metadata.origin 
  * 	"HomeNetwork",
  * 	{ providers: UnifiNetwork.providers(), state: UnifiNetwork.state() },
  * 	Effect.gen(function* () {
- * 		yield* UnifiNetwork.Network("guest", {
+ * 		yield* UnifiNetwork.Network("guests", {
  * 			management: "GATEWAY",
- * 			name: "Guest",
- * 			vlanId: 12,
+ * 			name: "Guests",
+ * 			vlanId: 40,
  * 			enabled: true,
  * 			cellularBackupEnabled: false,
  * 			internetAccessEnabled: true,
  * 			isolationEnabled: true,
  * 			zone: UnifiNetwork.FirewallZone.HOTSPOT,
- * 			ipv4Configuration: { autoScaleEnabled: false, hostIpAddress: "192.168.12.1", prefixLength: 24 },
+ * 			ipv4Configuration: {
+ * 				autoScaleEnabled: false,
+ * 				hostIpAddress: "192.168.40.1",
+ * 				prefixLength: 24,
+ * 				dhcpConfiguration: {
+ * 					mode: "SERVER",
+ * 					ipAddressRange: { start: "192.168.40.100", stop: "192.168.40.250" },
+ * 					leaseTimeSeconds: 86400,
+ * 					pingConflictDetectionEnabled: true,
+ * 				},
+ * 			},
  * 		});
  * 	}),
  * );
  * ```
+ *
+ * :::caution
+ * `zone` is required once the site uses the zone-based firewall, which every
+ * Network 10.6 site does. The type has it optional only because older sites
+ * have no zones. Gateway networks also need a gateway adopted on the site.
+ * :::
+ *
+ * ### Carrying a VLAN for another router
+ *
+ * **Example:** An unmanaged VLAN
+ *
+ * ```ts
+ * import * as UnifiNetwork from "@alchemy-unifi/network";
+ * import * as Effect from "effect/Effect";
+ *
+ * export const ispHandoff = UnifiNetwork.Network("isp-handoff", {
+ * 	management: "UNMANAGED",
+ * 	name: "ISP handoff",
+ * 	vlanId: 99,
+ * 	enabled: true,
+ * }).pipe(Effect.asVoid);
+ * ```
+ *
+ * ### Isolation and internet access
+ *
+ * `isolationEnabled` and `internetAccessEnabled` create system firewall
+ * policies. Isolation adds "Isolated Networks" BLOCK policies from the
+ * network to every internal zone, its own included. Turning internet access
+ * off adds a "Block … Internet Access" policy to `External`. Your policies
+ * that should win over them must come first: list them in
+ * `beforeSystemDefined` of the pair's `FirewallPolicyOrdering`.
+ *
+ * ### mDNS
+ *
+ * `mdnsForwardingEnabled` is the gateway's mDNS proxy, which repeats
+ * discovery between networks. Unset, it's `true`, as the console defaults it.
+ *
+ * :::caution
+ * The UI's Gateway mDNS Proxy setting (Auto, Off, Custom) is a view of this
+ * flag across all networks. Saving it in the UI, or the global network
+ * settings form it shares, rewrites every network's flag. Set the flags in
+ * the stack and leave the UI setting alone.
+ * :::
+ *
+ * ### The default network
+ *
+ * Every site has a default network on VLAN 1. To manage it, declare a
+ * `Network` with `vlanId: 1` and its current settings, check that
+ * `plan --adopt` shows no update for it, then deploy once with `--adopt`. Props may rename it, but it's never deleted: destroying the
+ * stack leaves it in place, and a change that would replace it (`management`,
+ * `site`) fails the plan.
+ *
+ * **Example:** Adopting the default network, with a new console's settings
+ *
+ * ```ts
+ * import * as UnifiNetwork from "@alchemy-unifi/network";
+ * import * as RemovalPolicy from "alchemy/RemovalPolicy";
+ * import * as Effect from "effect/Effect";
+ *
+ * // Copy your console's current values: a prop left out changes the live network.
+ * export const defaultNetwork = UnifiNetwork.Network("default", {
+ * 	management: "GATEWAY",
+ * 	name: "Default",
+ * 	vlanId: 1,
+ * 	enabled: true,
+ * 	cellularBackupEnabled: true,
+ * 	internetAccessEnabled: true,
+ * 	isolationEnabled: false,
+ * 	zone: UnifiNetwork.FirewallZone.INTERNAL,
+ * 	ipv4Configuration: {
+ * 		autoScaleEnabled: true,
+ * 		hostIpAddress: "192.168.1.1",
+ * 		prefixLength: 24,
+ * 		dhcpConfiguration: {
+ * 			mode: "SERVER",
+ * 			ipAddressRange: { start: "192.168.1.6", stop: "192.168.1.254" },
+ * 			leaseTimeSeconds: 86400,
+ * 			domainName: "localdomain",
+ * 			pingConflictDetectionEnabled: true,
+ * 		},
+ * 	},
+ * }).pipe(RemovalPolicy.retain(), Effect.asVoid);
+ * ```
+ *
+ * ### Looking up a network
+ *
+ * `Network.lookup({ name })` or `Network.lookup({ vlanId })` finds a network
+ * the stack uses but doesn't manage.
+ *
+ * **Example:** The default network as a reference
+ *
+ * ```ts
+ * import * as UnifiNetwork from "@alchemy-unifi/network";
+ * import * as Effect from "effect/Effect";
+ *
+ * export const lan = Effect.gen(function* () {
+ * 	const network = yield* UnifiNetwork.Network.lookup({ vlanId: 1 });
+ * 	return network.networkId;
+ * });
+ * ```
+ *
+ * ### Changes made in the UI
+ *
+ * Props are authoritative: every update sends the whole network, with
+ * explicit defaults for unset fields (`mdnsForwardingEnabled: true`, and a
+ * DHCP server's `domainName: ""`), so changes made in the UI are put back.
+ * The `config` attribute mirrors the console's object, so `alchemy drift`
+ * sees them.
+ *
+ * :::note
+ * WAN references (in NAT and IPv6 prefix delegation) are still raw
+ * `wanInterfaceId` strings.
+ * :::
+ *
+ * @resource
  */
 export const Network = Resource<Network>("UnifiNetwork.Network")({
 	/**

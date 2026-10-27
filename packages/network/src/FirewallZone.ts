@@ -90,11 +90,15 @@ export const resolveFirewallZone = Effect.fn("UnifiNetwork.resolveFirewallZone")
 const builtin = (name: BuiltinFirewallZoneName): BuiltinFirewallZone => ({ builtinFirewallZone: name });
 
 /**
- * A custom zone in the zone-based firewall. Networks join zones through
- * `Network`'s `zone` prop; the zone doesn't list its networks, so the two
- * resources never fight over membership.
+ * A custom zone in the zone-based firewall. Zones group networks, and
+ * `FirewallPolicy` resources allow or block traffic between them. Existing
+ * custom zones are adopted by name with `--adopt`. Deleting a zone moves its
+ * networks to `Internal`.
  *
- * @example
+ * ### Creating a zone
+ *
+ * **Example:** A zone with a network in it
+ *
  * ```ts
  * import * as UnifiNetwork from "@alchemy-unifi/network";
  * import * as Alchemy from "alchemy";
@@ -114,12 +118,66 @@ const builtin = (name: BuiltinFirewallZoneName): BuiltinFirewallZone => ({ built
  * 			cellularBackupEnabled: false,
  * 			internetAccessEnabled: false,
  * 			isolationEnabled: true,
- * 			zone: cameras, // or a built-in zone, e.g. UnifiNetwork.FirewallZone.INTERNAL
+ * 			zone: cameras,
  * 			ipv4Configuration: { autoScaleEnabled: false, hostIpAddress: "192.168.30.1", prefixLength: 24 },
  * 		});
  * 	}),
  * );
  * ```
+ *
+ * :::note
+ * Membership is set on the network (`Network`'s `zone`), not on the zone, so
+ * the two resources never disagree about it.
+ * :::
+ *
+ * ### Built-in zones
+ *
+ * The system zones aren't resources and can't be renamed or deleted. Use
+ * `FirewallZone.INTERNAL`, `EXTERNAL`, `GATEWAY`, `VPN`, `HOTSPOT` and `DMZ`
+ * wherever a zone goes.
+ *
+ * **Example:** A network in a built-in zone
+ *
+ * ```ts
+ * import * as UnifiNetwork from "@alchemy-unifi/network";
+ * import * as Effect from "effect/Effect";
+ *
+ * export const guests = UnifiNetwork.Network("guests", {
+ * 	management: "GATEWAY",
+ * 	name: "Guests",
+ * 	vlanId: 40,
+ * 	enabled: true,
+ * 	cellularBackupEnabled: false,
+ * 	internetAccessEnabled: true,
+ * 	isolationEnabled: true,
+ * 	zone: UnifiNetwork.FirewallZone.HOTSPOT,
+ * 	ipv4Configuration: { autoScaleEnabled: false, hostIpAddress: "192.168.40.1", prefixLength: 24 },
+ * }).pipe(Effect.asVoid);
+ * ```
+ *
+ * ### Looking up a zone
+ *
+ * `FirewallZone.lookup({ name })` finds any zone, built-in or custom, that the
+ * stack uses but doesn't manage.
+ *
+ * **Example:** A zone made in the UI
+ *
+ * ```ts
+ * import * as UnifiNetwork from "@alchemy-unifi/network";
+ * import * as Effect from "effect/Effect";
+ *
+ * export const iot = Effect.gen(function* () {
+ * 	const zone = yield* UnifiNetwork.FirewallZone.lookup({ name: "IoT" });
+ * 	return zone.firewallZoneId;
+ * });
+ * ```
+ *
+ * ### Deleting a zone
+ *
+ * UniFi moves a deleted zone's networks to `Internal`. Alchemy updates the
+ * networks that referenced the zone before deleting it.
+ *
+ * @resource
  */
 export const FirewallZone = Resource<FirewallZone>("UnifiNetwork.FirewallZone")({
 	INTERNAL: builtin("Internal"),

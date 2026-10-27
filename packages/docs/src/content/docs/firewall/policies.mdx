@@ -1,0 +1,72 @@
+---
+title: Policies
+description: Allow, block or reject traffic between zones, narrowed by networks, addresses and ports.
+---
+
+A [`FirewallPolicy`](/reference/firewallpolicy/) applies an `action` to traffic from a `source` zone to a `destination` zone.
+
+## Block a zone
+
+```ts
+// src/firewall.ts
+import * as UnifiNetwork from "@alchemy-unifi/network";
+import * as Effect from "effect/Effect";
+
+export const firewall = Effect.gen(function* () {
+	const lab = yield* UnifiNetwork.FirewallZone("lab-zone", { name: "Lab" });
+	yield* UnifiNetwork.FirewallPolicy("block-lab-to-internal", {
+		name: "Block Lab to Internal",
+		enabled: true,
+		action: { type: "BLOCK" },
+		source: { zone: lab },
+		destination: { zone: UnifiNetwork.FirewallZone.INTERNAL },
+		ipProtocolScope: { ipVersion: "IPV4_AND_IPV6" },
+		loggingEnabled: false,
+	});
+});
+```
+
+## Allow replies
+
+An `ALLOW` with `allowReturnTraffic: true` also lets the replies back, so you don't need a policy in the other direction.
+
+## Narrow it to addresses and ports
+
+```ts
+// src/firewall.ts
+import * as UnifiNetwork from "@alchemy-unifi/network";
+import * as Effect from "effect/Effect";
+
+export const firewall = Effect.gen(function* () {
+	const lab = yield* UnifiNetwork.FirewallZone("lab-zone", { name: "Lab" });
+	yield* UnifiNetwork.FirewallPolicy("internal-to-lab-ssh", {
+		name: "Allow SSH to the lab server",
+		enabled: true,
+		action: { type: "ALLOW", allowReturnTraffic: true },
+		source: { zone: UnifiNetwork.FirewallZone.INTERNAL },
+		destination: {
+			zone: lab,
+			trafficFilter: {
+				type: "IP_ADDRESS",
+				ipAddressFilter: {
+					type: "IP_ADDRESSES",
+					matchOpposite: false,
+					items: [{ type: "IP_ADDRESS", value: "192.168.50.10" }],
+				},
+				portFilter: { type: "PORTS", matchOpposite: false, items: [{ type: "PORT_NUMBER", value: 22 }] },
+			},
+		},
+		ipProtocolScope: {
+			ipVersion: "IPV4_AND_IPV6",
+			protocolFilter: { type: "PRESET", preset: { name: "TCP_UDP" } },
+		},
+		loggingEnabled: false,
+	});
+});
+```
+
+Reuse addresses and ports across policies with [traffic-matching lists](/firewall/traffic-matching-lists/).
+
+## Put it in order
+
+New policies go last among their zone pair's policies. Place them with [Ordering](/firewall/ordering/).

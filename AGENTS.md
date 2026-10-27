@@ -4,8 +4,8 @@ Things you must know that aren't obvious from the code.
 
 ## Documentation
 
-- **Docs live in `docs/`, one file per subject.** User-facing docs (guides, a page per resource with examples, user gotchas) are in `docs/`, overview `docs/README.md`. Internals and contributing are in `docs/development/`, overview `docs/development/README.md`; gotchas only maintainers need stay there. Both describe the current state only.
-- **Every TypeScript block in the user docs, package READMEs and doc comments (`@example`) is a complete module that typechecks:** the smoke test (`scripts/smoke/run.sh`) compiles them against the packed packages. Examples use Alchemy's default profile.
+- **User docs are the docs site** (`packages/docs`): hub pages and the tutorial in `src/content/docs/`, and a reference generated from each resource's JSDoc, which is where resource gotchas go. Internals and contributing are in `docs/development/`, one file per subject, overview `docs/development/README.md`; gotchas only maintainers need stay there. Both describe the current state only. The site's rules are in `docs/development/README.md#documentation`.
+- **Every TypeScript block in the docs site, package READMEs and doc comments is a complete module that typechecks:** the smoke test (`scripts/smoke/run.sh`) compiles them against the packed packages. Tutorial blocks start with a `// <path>` line, and diff blocks are whole files, because the smoke test replays and deploys the tutorial. Examples use Alchemy's default profile.
 - **Plans** for future or in-progress work go in `plans/` (versioned). Delete a plan when it's completed or cancelled; anything still worth knowing goes into `docs/` or the code. `_scratch/` (gitignored) is for session-local notes and plans.
 
 ## Safety

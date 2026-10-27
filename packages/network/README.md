@@ -57,7 +57,7 @@ export default Alchemy.Stack(
 );
 ```
 
-Then `npx alchemy plan` and `npx alchemy deploy`. [Getting started](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/getting-started.md) walks through it, including taking over an existing setup with `--adopt`.
+Then `npx alchemy plan` and `npx alchemy deploy`. [The tutorial](https://alchemy-unifi.hamishwhc.com/tutorial/part-1/) walks through it, including taking over an existing setup with `--adopt`.
 
 ## Connecting to a console
 
@@ -72,11 +72,11 @@ It asks how to reach the console:
 - **Directly:** the console's URL (e.g. `https://192.168.1.1`) and a Network API key (the Network app's Settings → Integrations). It offers to pin the console's self-signed certificate.
 - **Through ui.com:** a Site Manager API key from unifi.ui.com. It lists your consoles to pick from.
 
-Then `npx alchemy profile show` connects and shows the Network version. Use other profiles (`--profile <name>`) for other consoles, sites or connection methods, and in CI set `UNIFI_URL` (or `UNIFI_CONSOLE_ID`) and `UNIFI_API_KEY` instead. See [connecting to a console](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/connecting.md).
+Then `npx alchemy profile show` connects and shows the Network version. Use other profiles (`--profile <name>`) for other consoles, sites or connection methods, and in CI set `UNIFI_URL` (or `UNIFI_CONSOLE_ID`) and `UNIFI_API_KEY` instead. See [Setup](https://alchemy-unifi.hamishwhc.com/setup/).
 
 ## State on the console
 
-`UnifiNetwork.state()` keeps the stack's state in a disabled firewall policy on the console it manages, so a stack needs nothing but the console: no S3 bucket or other store. Every run locks the stage with a short-lived traffic-matching list. It suits UniFi-only stacks, and holds up to about 7.5 MiB of compressed state through ui.com or 16 MiB directly. Any other Alchemy state store works too. [Details and gotchas](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/state.md).
+`UnifiNetwork.state()` keeps the stack's state in a disabled firewall policy on the console it manages, so a stack needs nothing but the console: no S3 bucket or other store. Every run locks the stage with a short-lived traffic-matching list. It suits UniFi-only stacks, and holds up to about 7.5 MiB of compressed state through ui.com or 16 MiB directly. Any other Alchemy state store works too. [Details and gotchas](https://alchemy-unifi.hamishwhc.com/state/state-on-the-console/).
 
 ## Requirements
 
@@ -85,7 +85,7 @@ Then `npx alchemy profile show` connects and shows the Network version. Use othe
 
 ## Docs
 
-[The docs](https://github.com/HamishWHC/alchemy-unifi/tree/main/docs#readme) cover [getting started](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/getting-started.md), [connecting](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/connecting.md), [concepts](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/concepts.md), each resource with examples, and [the state store](https://github.com/HamishWHC/alchemy-unifi/blob/main/docs/state.md). The raw SDK is [`@alchemy-unifi/network-sdk`](https://www.npmjs.com/package/@alchemy-unifi/network-sdk). For a real-world config, see [home-network](https://github.com/HamishWHC/home-network): two sites sharing one stack, with zones, networks, Wi-Fi, a full firewall matrix and the state store on the console.
+[The docs](https://alchemy-unifi.hamishwhc.com) have [a tutorial](https://alchemy-unifi.hamishwhc.com/tutorial/part-1/), [setup](https://alchemy-unifi.hamishwhc.com/setup/), a page per area (networks, firewall, DNS), [concepts](https://alchemy-unifi.hamishwhc.com/concepts/references-and-lookups/), [the state store](https://alchemy-unifi.hamishwhc.com/state/state-on-the-console/), and [a reference](https://alchemy-unifi.hamishwhc.com/reference/network/) for every resource. The raw SDK is [`@alchemy-unifi/network-sdk`](https://www.npmjs.com/package/@alchemy-unifi/network-sdk). For a real-world config, see [home-network](https://github.com/HamishWHC/home-network): two sites sharing one stack, with zones, networks, Wi-Fi, a full firewall matrix and the state store on the console.
 
 ## License
 
