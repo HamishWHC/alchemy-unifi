@@ -9,9 +9,9 @@
 		"build": "turbo run build",
 		"check": "turbo run check",
 		"typecheck": "turbo run typecheck",
-		"test": "turbo run test",
-		"test:unit": "turbo run test:unit",
-		"test:controller": "turbo run test:controller",
+		"test": "vitest run",
+		"test:unit": "vitest run --project '*(unit)'",
+		"test:controller": "vitest run --project '*(controller)'",
 		"generate": "turbo run generate",
 		"lint": "oxlint",
 		"lint:fix": "oxlint --fix",
@@ -27,7 +27,8 @@
 		"oxfmt": "catalog:",
 		"oxlint": "catalog:",
 		"turbo": "^2.11.10",
-		"typescript": "catalog:"
+		"typescript": "catalog:",
+		"vitest": "catalog:"
 	},
 	"devEngines": {
 		"packageManager": {

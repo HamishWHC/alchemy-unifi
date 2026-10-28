@@ -158,7 +158,10 @@ const ensureSetUp = (session: AdminSession) =>
 /** A locally administered MAC derived from the site's ID, so each site's fake gateway is distinct. */
 const gatewayMac = (site: LegacySite) => ["02", "00", ...(site._id.slice(-8).match(/../g) ?? [])].join(":");
 
-/** A new site answers 503 for a while when several are created at once. */
+/**
+ * The controller answers 503 for a while when several sites are created at
+ * once: both to `add-site` and, for a while after, under a new site.
+ */
 const settled = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
 	effect.pipe(Effect.retry(Schedule.spaced("1 second").pipe(Schedule.upTo({ duration: "1 minute" }))));
 
@@ -265,7 +268,7 @@ export const withSite = (label = "site"): Effect.Effect<TestSite, ControllerErro
 		Effect.gen(function* () {
 			const session = yield* loggedIn;
 			const random = Math.random().toString(36).slice(2, 6);
-			const site = yield* session.addSite(`${TEST_SITE_PREFIX}${Date.now()}-${random}-${label}`);
+			const site = yield* settled(session.addSite(`${TEST_SITE_PREFIX}${Date.now()}-${random}-${label}`));
 			yield* prepareSite(session, site);
 			if (site.external_id === undefined) {
 				return yield* new ControllerError({ message: "add-site returned no external_id" });

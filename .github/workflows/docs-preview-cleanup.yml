@@ -1,4 +1,5 @@
-# Destroys a pull request's docs preview (deployed by ci.yml) when the PR closes.
+# Removes a pull request's docs preview (deployed by pr.yml) when the PR closes: the preview
+# itself, the link in its comment, and its GitHub deployments.
 name: Docs preview cleanup
 
 on:
@@ -9,38 +10,47 @@ jobs:
   destroy:
     name: destroy docs preview
     if: github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     concurrency:
       group: docs-pr-${{ github.event.number }}
       cancel-in-progress: false
     permissions:
       contents: read
+      deployments: write
       issues: write
       pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Set up pnpm
-        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - name: Set up
+        uses: ./.github/actions/setup
         with:
-          version: 12
+          filter: "@alchemy-unifi/docs..."
 
-      - name: Set up Node
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --filter @alchemy-unifi/docs...
-
-      - name: Destroy the preview
+      - name: Remove the preview and update its comment
         working-directory: packages/docs
-        run: pnpm exec alchemy destroy --stage "pr-${{ github.event.number }}" --yes
-        env:
+        run: pnpm exec alchemy deploy --stage "pr-${{ github.event.number }}" --yes
+        env: &alchemy-env
+          PREVIEW_CLOSED: "1"
           PULL_REQUEST: ${{ github.event.number }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           GITHUB_TOKEN: ${{ github.token }}
+
+      # Drops the stage's state; the comment stays.
+      - name: Destroy the stage
+        working-directory: packages/docs
+        run: pnpm exec alchemy destroy --stage "pr-${{ github.event.number }}" --yes
+        env: *alchemy-env
+
+      - name: Mark the GitHub deployments inactive
+        run: |
+          gh api -X GET "repos/$GITHUB_REPOSITORY/deployments" -f environment=docs-preview -f ref="$HEAD_REF" --paginate --jq '.[].id' |
+            while read -r id; do
+              gh api "repos/$GITHUB_REPOSITORY/deployments/$id/statuses" -f state=inactive > /dev/null
+            done
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ github.head_ref }}

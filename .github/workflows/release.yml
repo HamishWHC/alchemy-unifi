@@ -29,7 +29,7 @@ on:
 jobs:
   release:
     name: ${{ inputs.nightly && 'nightly' || 'release' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     # npm only accepts OIDC tokens from this environment, and GitHub only lets main deploy to it,
     # so a branch with an edited workflow can't publish.

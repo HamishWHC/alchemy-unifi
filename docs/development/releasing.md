@@ -1,6 +1,6 @@
 # Releasing
 
-`@alchemy-unifi/network` and `@alchemy-unifi/network-sdk` are published with npm trusted publishing (OIDC, no tokens), so every version has provenance, and the docs site is deployed with them. Both nightlies and releases run `release.yml`'s one job, but npm checks the calling workflow's filename, so it trusts two: `ci.yml` (which calls it for nightlies) and `release.yml` (run by hand for releases).
+`@alchemy-unifi/network` and `@alchemy-unifi/network-sdk` are published with npm trusted publishing (OIDC, no tokens), so every version has provenance, and the docs site is deployed with them. Pull requests (`pr.yml`) run the same checks (`checks.yml`) but can't publish. Both nightlies and releases run `release.yml`'s one job, but npm checks the calling workflow's filename, so it trusts two: `ci.yml` (which calls it for nightlies) and `release.yml` (run by hand for releases).
 
 - **Pack once, publish what the docs describe.** CI and the release job pack both packages and upload the tarballs as an artifact (`packed`, `packed-nightly`, `packed-release`). The smoke test runs against them (`PACKED_DIR`), the docs reference is generated from the packed provider (`NETWORK_PACKAGE_DIR`), and the release job publishes those exact tarballs.
 - **Nothing publishes unless both builds pass.** In the release job, the package build and the docs build come before the push, the npm publish and the docs deploy, and the docs deploy comes after the publish, so the docs never describe a version npm doesn't have. A nightly also waits for CI's own docs build.
@@ -20,7 +20,7 @@
 
     Each writes `.changeset/<name>.md`. `pnpm change status` shows what the pending intents would release. A package that only picks up a dependency's new version (the provider after an SDK release) gets an "Updated dependencies" entry automatically.
 
-- **Every push to `main` publishes a nightly** once CI passes: `ci.yml`'s `nightly` job runs after the CI job and calls `release.yml` with `nightly: true`. That runs `pnpm version -r` without committing, so each nightly carries the changelog so far, then bumps both packages to a prerelease of that version with `pnpm version -r prerelease --preid nightly.<UTC timestamp>.g<short sha>` (e.g. `0.1.1-nightly.20261027061928.g4ad5afa.0` after 0.1.0; pnpm counts from the manifest, which never holds a committed nightly, so its own counter alone would repeat), and publishes under the `nightly` dist-tag. semver's `prerelease` bumps the patch of a release version first, so a nightly sorts after the version the pending intents give, not before it. Both packages always get a nightly, so the provider's depends on the SDK's from the same commit. Install with `npm install @alchemy-unifi/network@nightly`.
+- **Every push to `main` publishes a nightly** once the checks pass: `ci.yml` (pushes to `main`) runs `checks.yml`, then its `nightly` job calls `release.yml` with `nightly: true`. That runs `pnpm version -r` without committing, so each nightly carries the changelog so far, then bumps both packages to a prerelease of that version with `pnpm version -r prerelease --preid nightly.<UTC timestamp>.g<short sha>` (e.g. `0.1.1-nightly.20261027061928.g4ad5afa.0` after 0.1.0; pnpm counts from the manifest, which never holds a committed nightly, so its own counter alone would repeat), and publishes under the `nightly` dist-tag. semver's `prerelease` bumps the patch of a release version first, so a nightly sorts after the version the pending intents give, not before it. Both packages always get a nightly, so the provider's depends on the SDK's from the same commit. Install with `npm install @alchemy-unifi/network@nightly`.
 - **To release**, run the Release workflow by hand on `main` (Actions → Release → Run workflow), or `gh workflow run release.yml`. Its one job:
     1. runs `pnpm version -r`, which bumps the packages the intents name (and their dependents), prepends each one's `CHANGELOG.md` (`versioning.changelog.storage: repository`; oxfmt ignores these generated files) and deletes the consumed intents;
     2. builds and packs the packages, and builds the docs from the packed provider;
@@ -36,13 +36,13 @@
 
 ## Docs deploys
 
-`packages/docs/alchemy.run.ts` deploys the site to Cloudflare with Alchemy, keeping its state on Cloudflare (`Cloudflare.state()`). CI deploys a build it already made (`DOCS_PREBUILT=1`) rather than building again.
+`packages/docs/alchemy.run.ts` deploys the site to Cloudflare with Alchemy, keeping its state on Cloudflare (`Cloudflare.state()`). CI deploys a build it already made (`DOCS_PREBUILT=1`) rather than building again. The header shows the provider version a build describes, or a PR preview's number and commit.
 
-| Stage     | Deployed by                                                                       | URL                                                            |
-| --------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `prod`    | releases                                                                          | `alchemy-unifi.hamishwhc.com`                                  |
-| `nightly` | nightlies                                                                         | `nightly.alchemy-unifi.hamishwhc.com`                          |
-| `pr-<n>`  | `ci.yml`, for PRs from this repo; `docs-preview-cleanup.yml` destroys it on close | a preview version of the `nightly` Worker, commented on the PR |
+| Stage     | Deployed by                                                                       | URL                                                                                                     |
+| --------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `prod`    | releases                                                                          | `alchemy-unifi.hamishwhc.com`                                                                           |
+| `nightly` | nightlies                                                                         | `nightly.alchemy-unifi.hamishwhc.com`                                                                   |
+| `pr-<n>`  | `pr.yml`, for PRs from this repo; `docs-preview-cleanup.yml` destroys it on close | a preview version of the `nightly` Worker, commented on the PR and shown as a `docs-preview` deployment |
 
 They need the repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`: an account holding the `hamishwhc.com` zone, and a token that can edit Workers and that zone's DNS and Workers routes. The token can't create Alchemy's state store (the `alchemy-state-store` Worker and its Secrets Store), so that was made once by hand; see step 8 below.
 
