@@ -13,7 +13,7 @@ permissions:
 jobs:
   build:
     name: check + unit test + pack
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -49,7 +49,7 @@ jobs:
   controller-tests:
     name: controller tests
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -72,7 +72,7 @@ jobs:
   smoke:
     name: smoke test
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -106,7 +106,7 @@ jobs:
   docs:
     name: docs
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
       - name: Checkout

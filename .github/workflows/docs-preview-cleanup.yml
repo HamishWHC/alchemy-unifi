@@ -10,7 +10,7 @@ jobs:
   destroy:
     name: destroy docs preview
     if: github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     concurrency:
       group: docs-pr-${{ github.event.number }}
