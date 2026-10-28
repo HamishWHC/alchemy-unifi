@@ -12,15 +12,6 @@
 		"typecheck": {
 			"dependsOn": ["^typecheck"]
 		},
-		"test": {
-			"dependsOn": ["^test"],
-			"cache": false
-		},
-		"test:unit": {},
-		"test:controller": {
-			"dependsOn": ["^test:controller"],
-			"cache": false
-		},
 		"lint": {},
 		"lint:fix": {},
 		"fmt": {},
