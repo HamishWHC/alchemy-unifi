@@ -107,6 +107,10 @@ jobs:
           mkdir -p "$RUNNER_TEMP/network"
           tar -xzf "$RUNNER_TEMP"/packed/alchemy-unifi-network-[0-9]*.tgz -C "$RUNNER_TEMP/network"
           NETWORK_PACKAGE_DIR="$RUNNER_TEMP/network/package" pnpm --filter @alchemy-unifi/docs exec sh -c 'node scripts/generate-reference.ts && astro build'
+        env:
+          # A PR's build shows its number and commit in the header (on pushes, these are empty).
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
+          BUILD_SHA: ${{ github.event.pull_request.head.sha }}
 
       - name: Upload the docs build
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -115,8 +119,8 @@ jobs:
           path: packages/docs/dist
           if-no-files-found: error
 
-  # A preview of the docs on each pull request from this repository (forks get no secrets).
-  # Removed when the PR closes (docs-preview-cleanup.yml).
+  # A preview of the docs on each pull request from this repository (forks get no secrets), shown
+  # on the PR as a comment and a deployment. Removed when the PR closes (docs-preview-cleanup.yml).
   docs-preview:
     name: docs preview
     needs: [ci, docs]
@@ -128,6 +132,7 @@ jobs:
       cancel-in-progress: false
     permissions:
       contents: read
+      deployments: write
       issues: write
       pull-requests: write
     steps:
@@ -154,9 +159,27 @@ jobs:
           name: docs
           path: packages/docs/dist
 
+      # Transient, so a deployment from one PR doesn't mark another PR's inactive.
+      - name: Start the GitHub deployment
+        id: deployment
+        run: |
+          id=$(jq -n --arg ref "$HEAD_REF" --argjson pr "$PULL_REQUEST" \
+            '{ref: $ref, environment: "docs-preview", description: "Docs preview for PR #\($pr)", transient_environment: true, auto_merge: false, required_contexts: []}' |
+            gh api "repos/$GITHUB_REPOSITORY/deployments" --input - --jq .id)
+          gh api "repos/$GITHUB_REPOSITORY/deployments/$id/statuses" -f state=in_progress > /dev/null
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ github.head_ref }}
+          PULL_REQUEST: ${{ github.event.number }}
+
       - name: Deploy the preview
+        id: deploy
         working-directory: packages/docs
-        run: pnpm exec alchemy deploy --stage "pr-${{ github.event.number }}" --yes
+        run: |
+          pnpm exec alchemy deploy --stage "pr-${{ github.event.number }}" --yes | tee "$RUNNER_TEMP/deploy.log"
+          # The stack's outputs, as printed at the end of the deploy.
+          echo "url=$(grep -o "url: 'https://[^']*'" "$RUNNER_TEMP/deploy.log" | tail -n 1 | cut -d "'" -f 2)" >> "$GITHUB_OUTPUT"
         env:
           DOCS_PREBUILT: "1"
           PULL_REQUEST: ${{ github.event.number }}
@@ -164,6 +187,18 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Finish the GitHub deployment
+        if: always() && steps.deployment.outputs.id != ''
+        run: |
+          args=(-f state="$([ "$OUTCOME" = success ] && echo success || echo failure)" -f log_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID")
+          if [ -n "$URL" ]; then args+=(-f environment_url="$URL"); fi
+          gh api "repos/$GITHUB_REPOSITORY/deployments/$ID/statuses" "${args[@]}" > /dev/null
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ID: ${{ steps.deployment.outputs.id }}
+          OUTCOME: ${{ steps.deploy.outcome }}
+          URL: ${{ steps.deploy.outputs.url }}
 
   # Once CI and the docs build pass on main, a nightly of each package's next version under the
   # `nightly` dist-tag, and the nightly docs (release.yml does both; see docs/development/releasing.md).

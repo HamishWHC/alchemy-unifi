@@ -3,7 +3,9 @@
  * - `prod`: releases, at alchemy-unifi.hamishwhc.com;
  * - `nightly`: every push to `main`, at nightly.alchemy-unifi.hamishwhc.com;
  * - `pr-<n>`: a preview of each pull request, as a preview version of the
- *   `nightly` Worker, commented on the PR and destroyed when it closes.
+ *   `nightly` Worker, commented on the PR. When the PR closes, a deploy with
+ *   `PREVIEW_CLOSED=1` removes the preview and says so in the comment, then
+ *   the stage is destroyed (comments are never deleted).
  *
  * CI builds the site once, from the packed packages, and sets
  * `DOCS_PREBUILT=1` so the deploy uploads that build instead of building
@@ -24,6 +26,8 @@ const DOMAINS: Partial<Record<string, string>> = {
 
 const prebuilt = process.env["DOCS_PREBUILT"] === "1";
 const pullRequest = process.env["PULL_REQUEST"];
+const previewClosed = process.env["PREVIEW_CLOSED"] === "1";
+const now = `${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC`;
 
 const Docs = Cloudflare.Website.StaticSite(
 	"Docs",
@@ -66,6 +70,22 @@ export default Alchemy.Stack(
 	},
 	Effect.gen(function* () {
 		const { stage } = yield* Alchemy.Stack;
+		if (stage.startsWith("pr-") && pullRequest !== undefined && previewClosed) {
+			yield* GitHub.Comment("preview-comment", {
+				owner: "HamishWHC",
+				repository: "alchemy-unifi",
+				issueNumber: Number(pullRequest),
+				body: `
+					## Docs preview
+
+					Removed when this PR closed.
+
+					---
+					_Removed ${now}._
+				`,
+			});
+			return {};
+		}
 		const docs = yield* Docs;
 		if (stage.startsWith("pr-") && pullRequest !== undefined) {
 			const sha = process.env["BUILD_SHA"];
@@ -78,10 +98,10 @@ export default Alchemy.Stack(
 
 					**URL:** ${docs.url}
 
-					Built from ${sha ? `[\`${sha.slice(0, 7)}\`](https://github.com/HamishWHC/alchemy-unifi/commit/${sha})` : "an unknown commit"}, with the packages packed from it.
+					Built from ${sha ? `[\`${sha.slice(0, 7)}\`](https://github.com/HamishWHC/alchemy-unifi/commit/${sha})` : "an unknown commit"}.
 
 					---
-					_This comment updates with each push._
+					_Deployed ${now}. This comment updates with each push._
 				`,
 			});
 		}
