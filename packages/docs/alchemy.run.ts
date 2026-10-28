@@ -39,7 +39,12 @@ const Docs = Cloudflare.Website.StaticSite(
 			...(prebuilt ? { memo: false } : {}),
 			...(domain === undefined
 				? {}
-				: { name: `alchemy-unifi-docs-${stage}`, workersDev: false, domain: { name: domain } }),
+				: {
+						name: `alchemy-unifi-docs-${stage}`,
+						// PR previews are preview versions of the nightly Worker, served on workers.dev.
+						workersDev: { enabled: false, previewsEnabled: stage === "nightly" },
+						domain: { name: domain },
+					}),
 			...(previewOf === undefined
 				? {}
 				: {
