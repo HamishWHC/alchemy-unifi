@@ -44,7 +44,7 @@
 | `nightly` | nightlies                                                                         | `nightly.alchemy-unifi.hamishwhc.com`                          |
 | `pr-<n>`  | `ci.yml`, for PRs from this repo; `docs-preview-cleanup.yml` destroys it on close | a preview version of the `nightly` Worker, commented on the PR |
 
-They need the repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`: an account holding the `hamishwhc.com` zone, and a token that can edit Workers and that zone's DNS and Workers routes.
+They need the repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`: an account holding the `hamishwhc.com` zone, and a token that can edit Workers and that zone's DNS and Workers routes. The token can't create Alchemy's state store (the `alchemy-state-store` Worker and its Secrets Store), so that was made once by hand; see step 8 below.
 
 ## Bootstrap (done once)
 
@@ -79,3 +79,9 @@ npm can only trust a workflow for a package that already exists, so each name wa
 6. On npmjs.com, set each package's publishing access to require two-factor authentication and disallow tokens. Trusted publishing still works; long-lived tokens can't publish.
 
 7. Run the Release workflow. The manifests start at `0.0.1` (the placeholder's version), so the first intent's `minor` releases 0.1.0. pnpm uses a manifest's version unchanged for a package npm doesn't have yet.
+8. Create Alchemy's state store for the docs, with a token that can also edit the Secrets Store and account settings, then narrow the token back to what the deploys need:
+
+    ```sh
+    cd packages/docs
+    pnpm exec alchemy state bootstrap --backend cloudflare
+    ```
