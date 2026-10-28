@@ -1,4 +1,4 @@
-# Removes a pull request's docs preview (deployed by ci.yml) when the PR closes: the preview
+# Removes a pull request's docs preview (deployed by pr.yml) when the PR closes: the preview
 # itself, the link in its comment, and its GitHub deployments.
 name: Docs preview cleanup
 
