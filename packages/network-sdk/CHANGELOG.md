@@ -1,5 +1,11 @@
 # @alchemy-unifi/network-sdk
 
+## 0.1.1
+
+### Patch Changes
+
+- The README links to the new docs site.
+
 ## 0.1.0
 
 ### Minor Changes

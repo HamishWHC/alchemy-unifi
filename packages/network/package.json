@@ -1,6 +1,6 @@
 {
 	"name": "@alchemy-unifi/network",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "Alchemy provider for the UniFi Network application.",
 	"keywords": [
 		"alchemy",

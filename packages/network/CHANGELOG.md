@@ -1,5 +1,16 @@
 # @alchemy-unifi/network
 
+## 0.1.1
+
+### Patch Changes
+
+- The docs moved to https://alchemy-unifi.hamishwhc.com, with a tutorial and a reference generated from the resources' doc comments, which now hold every resource's gotchas and more examples.
+
+- Link to a real-world example config from the README.
+
+- Updated dependencies:
+  - @alchemy-unifi/network-sdk@0.1.1
+
 ## 0.1.0
 
 ### Minor Changes

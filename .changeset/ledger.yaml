@@ -2,7 +2,16 @@
   dir: packages/network-sdk
   intents:
     - calm-waves-fold
+"@alchemy-unifi/network-sdk@0.1.1":
+  dir: packages/network-sdk
+  intents:
+    - clever-bees-press
 "@alchemy-unifi/network@0.1.0":
   dir: packages/network
   intents:
     - calm-waves-fold
+"@alchemy-unifi/network@0.1.1":
+  dir: packages/network
+  intents:
+    - nice-walls-type
+    - old-deers-glow
